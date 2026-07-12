@@ -1,1 +1,1 @@
-export {}; // @aigos/app-web — empty skeleton (Phase 0, step 1)
+export { createWebServer } from "./server.js";
