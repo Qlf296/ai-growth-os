@@ -8,10 +8,13 @@
   ],
   "scripts": {
     "test:arch": "depcruise apps packages --config .dependency-cruiser.cjs",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "vitest run"
   },
   "devDependencies": {
+    "@types/node": "^26.1.1",
     "dependency-cruiser": "^18.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
   }
 }
