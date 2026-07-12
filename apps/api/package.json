@@ -7,6 +7,7 @@
   "dependencies": {
     "@aigos/infra": "0.1.0",
     "@aigos/identity": "0.1.0",
-    "@aigos/database": "0.1.0"
+    "@aigos/database": "0.1.0",
+    "@aigos/adapters": "0.1.0"
   }
 }

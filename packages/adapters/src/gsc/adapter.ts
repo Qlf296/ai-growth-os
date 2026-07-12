@@ -1,19 +1,23 @@
 /** GSC adapter (S7 §1.1 dossier as data) built on the ADR-021 framework. */
 import { int } from "@aigos/config-registry";
 
-import type { Adapter } from "../types.js";
+import type { Adapter, CapabilityManifest } from "../types.js";
 import type { GscTransport } from "./transport.js";
+
+export const GSC_CAPABILITIES: CapabilityManifest = {
+  read_search_analytics: true,
+  publish: false,          // GSC is read-only by nature
+  backfill_months: "16",   // S7 §1.1
+};
+
+export const GSC_OAUTH_SCOPES = ["https://www.googleapis.com/auth/webmasters.readonly"] as const;
 
 export function createGscAdapter(transport: GscTransport): Adapter {
   return {
     descriptor: {
       provider: "gsc",
       apiVersion: "searchconsole_v1",
-      capabilities: {
-        read_search_analytics: true,
-        publish: false,          // GSC is read-only by nature
-        backfill_months: "16",   // S7 §1.1
-      },
+      capabilities: GSC_CAPABILITIES,
       deprecationCheckJobFamily: "gsc.deprecation_check",
       configKeys: [
         {

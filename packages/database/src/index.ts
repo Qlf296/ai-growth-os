@@ -13,3 +13,5 @@ export { provisionOnSignIn, isMember, listUserWorkspaces } from "./provisioning.
 export type { ProvisionedIdentity } from "./provisioning.js";
 export { SignalRepository } from "./repositories/signals.js";
 export type { SignalDraft } from "./repositories/signals.js";
+export { TokenVault } from "./vault.js";
+export type { StoredTokens, VaultKey } from "./vault.js";

@@ -7,17 +7,42 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type pg from "pg";
 
-import { isMember, listUserWorkspaces, provisionOnSignIn, withWorkspace } from "@aigos/database";
+import {
+  buildGoogleAuthUrl,
+  signOAuthState,
+  verifyOAuthState,
+  classifyError,
+  GSC_CAPABILITIES,
+  GSC_OAUTH_SCOPES,
+  type GoogleTokenEndpoint,
+} from "@aigos/adapters";
+import {
+  ConnectionRepository,
+  isMember,
+  listUserWorkspaces,
+  provisionOnSignIn,
+  withWorkspace,
+  type TokenVault,
+} from "@aigos/database";
 import type { MagicLinkService, SessionService } from "@aigos/identity";
 import { HealthRegistry } from "@aigos/infra";
 
 import { clientIp, cookies, json, readJson, sessionCookie, uaFamily } from "./http.js";
+
+export interface GoogleOAuthDeps {
+  readonly clientId: string;
+  readonly redirectUri: string;
+  readonly stateHmacKey: string;
+  readonly endpoint: GoogleTokenEndpoint;
+  readonly vault: TokenVault;
+}
 
 export interface ApiDeps {
   readonly health?: HealthRegistry;
   readonly pool?: pg.Pool;
   readonly magic?: MagicLinkService;
   readonly sessions?: SessionService;
+  readonly googleOAuth?: GoogleOAuthDeps;
 }
 
 export type Handler = (req: IncomingMessage, res: ServerResponse) => Promise<void> | void;
@@ -114,6 +139,73 @@ export function buildApiRoutes(deps: ApiDeps = {}): Record<string, Handler> {
       if (!session) return json(res, 401, { error: "unauthenticated" });
       await sessions.revokeOtherSessions(session.userId, session.sessionId);
       json(res, 204, undefined);
+    },
+
+    "GET /connections/google/authorize": async (req, res) => {
+      const { pool } = auth();
+      const oauth = deps.googleOAuth;
+      if (!oauth) return json(res, 404, { error: "not_found" });
+      const session = await currentSession(req);
+      if (!session) return json(res, 401, { error: "unauthenticated" });
+      const url = new URL(req.url ?? "/", "http://local");
+      const workspaceId = url.searchParams.get("workspaceId") ?? "";
+      if (!/^[0-9a-f-]{36}$/.test(workspaceId) || !(await isMember(pool, session.userId, workspaceId))) {
+        return json(res, 403, { error: "not_a_member" });
+      }
+      const state = signOAuthState(
+        { workspaceId, userId: session.userId, expiresAt: Date.now() + 10 * 60_000 },
+        oauth.stateHmacKey,
+      );
+      json(res, 200, {
+        url: buildGoogleAuthUrl({
+          clientId: oauth.clientId,
+          redirectUri: oauth.redirectUri,
+          scopes: GSC_OAUTH_SCOPES,
+          state,
+        }),
+      });
+    },
+
+    "GET /connections/google/callback": async (req, res) => {
+      const { pool } = auth();
+      const oauth = deps.googleOAuth;
+      if (!oauth) return json(res, 404, { error: "not_found" });
+      const session = await currentSession(req);
+      if (!session) return json(res, 401, { error: "unauthenticated" });
+      const url = new URL(req.url ?? "/", "http://local");
+      const code = url.searchParams.get("code") ?? "";
+      const statePayload = verifyOAuthState(url.searchParams.get("state") ?? "", oauth.stateHmacKey, new Date());
+      // generic 400: tampered, expired, or bound to another user — no detail leaks
+      if (!code || !statePayload || statePayload.userId !== session.userId) {
+        return json(res, 400, { error: "invalid_state" });
+      }
+      let exchanged;
+      try {
+        exchanged = await oauth.endpoint.exchangeCode(code);
+      } catch (error) {
+        const kind = classifyError(error).kind;
+        return json(res, kind === "auth" ? 401 : 502, { error: kind === "auth" ? "provider_auth_failed" : "provider_unavailable" });
+      }
+      const connectionId = await withWorkspace(pool, statePayload.workspaceId, async (tx) => {
+        const id = await new ConnectionRepository().create(tx, {
+          provider: "gsc",
+          scopes: [...(exchanged.grantedScopes ?? GSC_OAUTH_SCOPES)],
+          capabilities: { ...GSC_CAPABILITIES },
+          authorizedBy: session.userId, // ADR-019
+        });
+        await tx.query(
+          `INSERT INTO audit_log (workspace_id, actor, event, details) VALUES ($1, $2, 'provider.connected', $3::jsonb)`,
+          [statePayload.workspaceId, session.userId, JSON.stringify({ provider: "gsc", connectionId: id })],
+        );
+        return id;
+      });
+      await oauth.vault.storeTokens(statePayload.workspaceId, connectionId, {
+        accessToken: exchanged.accessToken,
+        refreshToken: exchanged.refreshToken ?? null,
+        expiresAt: new Date(Date.now() + exchanged.expiresInSeconds * 1000),
+      });
+      // I8: id/provider/status only — never token material, never scopes echoing secrets
+      json(res, 200, { connection: { id: connectionId, provider: "gsc", status: "active" } });
     },
 
     "POST /auth/request-link": async (req, res) => {
