@@ -1,0 +1,9 @@
+{
+  "rows": [
+    { "keys": ["2026-07-08", "cv sans experience", "https://forgcv.com/cv-sans-experience"], "clicks": 53, "impressions": 4812, "ctr": 0.011, "position": 8.4 },
+    { "keys": ["2026-07-08", "modele cv etudiant", "https://forgcv.com/modele-cv-etudiant"], "clicks": 128, "impressions": 3105, "ctr": 0.0412, "position": 4.2 },
+    { "keys": ["2026-07-09", "cv sans experience", "https://forgcv.com/cv-sans-experience"], "clicks": 61, "impressions": 5023, "ctr": 0.0121, "position": 8.1 },
+    { "keys": ["2026-07-09", "lettre de motivation ia", "https://forgcv.com/lettre-motivation"], "clicks": 47, "impressions": 1980, "ctr": 0.0237, "position": 6.7 }
+  ],
+  "responseAggregationType": "byPage"
+}

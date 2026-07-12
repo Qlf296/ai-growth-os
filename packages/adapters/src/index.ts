@@ -10,3 +10,4 @@ export type {
   CapabilityManifest,
   HealthResult,
 } from "./types.js";
+export * from "./gsc/index.js";

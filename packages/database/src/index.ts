@@ -11,3 +11,5 @@ export { listEnabledSystemJobs } from "./repositories/scheduled-jobs.js";
 export type { ScheduledJobRow } from "./repositories/scheduled-jobs.js";
 export { provisionOnSignIn, isMember, listUserWorkspaces } from "./provisioning.js";
 export type { ProvisionedIdentity } from "./provisioning.js";
+export { SignalRepository } from "./repositories/signals.js";
+export type { SignalDraft } from "./repositories/signals.js";
