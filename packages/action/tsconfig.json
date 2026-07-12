@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
+  "include": ["src"],
+  "references": [{ "path": "../ai-gateway" }, { "path": "../database" }, { "path": "../growth" }, { "path": "../infra" }]
+}

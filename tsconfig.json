@@ -39,6 +39,9 @@
     },
     {
       "path": "packages/growth"
+    },
+    {
+      "path": "packages/action"
     }
   ]
 }
