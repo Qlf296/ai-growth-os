@@ -1,0 +1,11 @@
+{
+  "name": "@aigos/identity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@aigos/delivery": "0.1.0",
+    "pg": "^8.16.3"
+  }
+}

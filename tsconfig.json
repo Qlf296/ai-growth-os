@@ -30,6 +30,9 @@
     },
     {
       "path": "packages/infra"
+    },
+    {
+      "path": "packages/identity"
     }
   ]
 }
