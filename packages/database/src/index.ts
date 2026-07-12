@@ -17,3 +17,6 @@ export { TokenVault } from "./vault.js";
 export type { StoredTokens, VaultKey } from "./vault.js";
 export { getSyncState, updateSyncState } from "./repositories/sync-state.js";
 export type { SyncState, SyncStateUpdate } from "./repositories/sync-state.js";
+export { updateConnectionHealth } from "./repositories/connection-health.js";
+export type { HealthTransition } from "./repositories/connection-health.js";
+export type { ConnectionHealth } from "./repositories/connections.js";

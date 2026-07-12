@@ -8,12 +8,14 @@ import type pg from "pg";
 
 import {
   GscValidationError,
+  classifyError,
+  healthForErrorKind,
   ingestSearchAnalytics,
   type GscTransport,
   type QuotaGuard,
 } from "@aigos/adapters";
 import { int, type ConfigRegistry } from "@aigos/config-registry";
-import { getSyncState, recordJobRun, updateSyncState, withWorkspace } from "@aigos/database";
+import { getSyncState, recordJobRun, updateConnectionHealth, updateSyncState, withWorkspace } from "@aigos/database";
 import type { MetricsRegistry, RawStore } from "@aigos/infra";
 
 import type { SchedulerPayload } from "./scheduler.js";
@@ -138,6 +140,10 @@ export function createGscIngestionHandler(deps: IngestionDeps) {
           addApiQuotaUsed: apiCalls,
           lastError: error instanceof Error ? error.message : String(error),
         });
+        // Health lifecycle: transient/quota → degraded, auth → reconnect_required, revoked → failed.
+        const health = healthForErrorKind(classifyError(error).kind);
+        const t = await updateConnectionHealth(deps.pool, workspaceId, connectionId, health, "sync failure");
+        deps.metrics.counter(`connection.health.${t.to}`).inc();
         throw error; // bounded retries + DLQ are the queue's job; watermark unchanged → safe resume
       }
 
@@ -151,6 +157,8 @@ export function createGscIngestionHandler(deps: IngestionDeps) {
         lastError: null,
       });
       deps.metrics.counter("ingest.signals_inserted").inc(inserted);
+      const t = await updateConnectionHealth(deps.pool, workspaceId, connectionId, "healthy", "sync ok");
+      deps.metrics.counter(`connection.health.${t.to}`).inc();
       await withWorkspace(deps.pool, workspaceId, async (tx) => {
         await tx.query(`UPDATE connections SET health_checked_at = now() WHERE id = $1`, [connectionId]);
         await tx.query(

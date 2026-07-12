@@ -5,10 +5,13 @@
  */
 import type { Tx } from "../tenancy.js";
 
+export type ConnectionHealth = "pending" | "healthy" | "degraded" | "reconnect_required" | "failed";
+
 export interface Connection {
   id: string;
   provider: string;
   status: "active" | "expired" | "revoked" | "error";
+  healthStatus: ConnectionHealth;
   scopes: string[];
   capabilities: Record<string, unknown>;
   authorizedBy: string;
@@ -38,13 +41,14 @@ export class ConnectionRepository {
 
   async list(tx: Tx): Promise<Connection[]> {
     const r = await tx.query(
-      `SELECT id, provider, status, scopes, capabilities, authorized_by, external_account_ref, created_at
+      `SELECT id, provider, status, health_status, scopes, capabilities, authorized_by, external_account_ref, created_at
        FROM connections ORDER BY created_at`,
     );
     return r.rows.map((row: Record<string, unknown>) => ({
       id: row.id as string,
       provider: row.provider as string,
       status: row.status as Connection["status"],
+      healthStatus: row.health_status as ConnectionHealth,
       scopes: row.scopes as string[],
       capabilities: row.capabilities as Record<string, unknown>,
       authorizedBy: row.authorized_by as string,

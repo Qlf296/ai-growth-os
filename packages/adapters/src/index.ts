@@ -27,3 +27,5 @@ export type {
   OAuthStatePayload,
   RefreshParams,
 } from "./google-oauth.js";
+export { checkConnectionHealth, healthForErrorKind } from "./health.js";
+export type { HealthCheckParams, HealthCheckResult } from "./health.js";
