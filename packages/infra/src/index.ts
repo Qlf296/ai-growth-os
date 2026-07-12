@@ -22,3 +22,5 @@ export { ReadinessRegistry, assertReady, liveness, diagnosticEvidenceId, databas
 export type { DependencyProbe, ProbeResult, ProbeState, ReadinessReport } from "./observability/readiness.js";
 export { withRetry, withTimeout, TimeoutError, CircuitBreaker, CircuitOpenError } from "./resilience.js";
 export type { RetryOptions, CircuitBreakerOptions, CircuitState } from "./resilience.js";
+export { InMemoryLock, RedisLock, GracefulShutdown } from "./lock.js";
+export type { DistributedLock, LockHandle, RedisLockClient } from "./lock.js";
