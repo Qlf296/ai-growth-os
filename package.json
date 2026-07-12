@@ -7,6 +7,9 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "tsx scripts/dev/start.mts",
+    "start": "tsx scripts/dev/start.mts",
+    "build": "tsc -b",
     "test:arch": "depcruise apps packages --config .dependency-cruiser.cjs",
     "typecheck": "tsc -b",
     "test": "vitest run",
@@ -16,6 +19,8 @@
     "@types/node": "^26.1.1",
     "dependency-cruiser": "^18.0.0",
     "embedded-postgres": "^18.4.0-beta.17",
+    "pg": "^8.13.1",
+    "tsx": "^4.19.2",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"
   }

@@ -3,3 +3,7 @@ dist/
 *.tsbuildinfo
 .env
 .env.*
+
+# local dev embedded postgres
+.localdb/
+.env
