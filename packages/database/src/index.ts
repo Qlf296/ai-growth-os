@@ -7,3 +7,5 @@ export { MembershipRepository } from "./repositories/memberships.js";
 export type { Membership, MembershipRole } from "./repositories/memberships.js";
 export { ConnectionRepository } from "./repositories/connections.js";
 export type { Connection } from "./repositories/connections.js";
+export { listEnabledSystemJobs } from "./repositories/scheduled-jobs.js";
+export type { ScheduledJobRow } from "./repositories/scheduled-jobs.js";
