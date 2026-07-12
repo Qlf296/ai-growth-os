@@ -7,7 +7,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import type pg from "pg";
-import type { TokenVault } from "@aigos/database";
+import { withWorkspace, type TokenVault } from "@aigos/database";
 
 import { applyConnectionStatus } from "./lifecycle.js";
 import { classifyError } from "./capabilities.js";
@@ -73,9 +73,16 @@ export interface ExchangedTokens {
   readonly grantedScopes?: readonly string[];
 }
 
+export interface RefreshedTokens {
+  readonly accessToken: string;
+  readonly expiresInSeconds: number;
+  /** Google occasionally issues a new refresh token — it must be rotated into the vault. */
+  readonly refreshToken?: string;
+}
+
 export interface GoogleTokenEndpoint {
   exchangeCode(code: string): Promise<ExchangedTokens>;
-  refreshToken(refreshToken: string): Promise<{ accessToken: string; expiresInSeconds: number }>;
+  refreshToken(refreshToken: string): Promise<RefreshedTokens>;
 }
 
 /** Production transport — plain fetch, no SDK. Exercised against real Google only (not in CI). */
@@ -114,14 +121,18 @@ export class FetchGoogleTokenEndpoint implements GoogleTokenEndpoint {
     };
   }
 
-  async refreshToken(refreshToken: string): Promise<{ accessToken: string; expiresInSeconds: number }> {
+  async refreshToken(refreshToken: string): Promise<RefreshedTokens> {
     const p = await this.post({
       refresh_token: refreshToken,
       client_id: this.config.clientId,
       client_secret: this.config.clientSecret,
       grant_type: "refresh_token",
     });
-    return { accessToken: p.access_token as string, expiresInSeconds: p.expires_in as number };
+    return {
+      accessToken: p.access_token as string,
+      expiresInSeconds: p.expires_in as number,
+      ...(typeof p.refresh_token === "string" ? { refreshToken: p.refresh_token } : {}),
+    };
   }
 }
 
@@ -149,13 +160,36 @@ export async function refreshConnectionToken(params: RefreshParams): Promise<str
   try {
     const fresh = await params.endpoint.refreshToken(tokens.refreshToken);
     const expiresAt = new Date(now.getTime() + fresh.expiresInSeconds * 1000);
-    await params.vault.updateAccessToken(params.workspaceId, params.connectionId, fresh.accessToken, expiresAt);
+    if (fresh.refreshToken) {
+      // Google rotated the refresh token — persist both, keep the credential in the vault.
+      await params.vault.storeTokens(params.workspaceId, params.connectionId, {
+        accessToken: fresh.accessToken,
+        refreshToken: fresh.refreshToken,
+        expiresAt,
+      });
+      await auditToken(params, "token.rotated");
+    } else {
+      await params.vault.updateAccessToken(params.workspaceId, params.connectionId, fresh.accessToken, expiresAt);
+      await auditToken(params, "token.refreshed");
+    }
     return fresh.accessToken;
   } catch (error) {
     const classified = classifyError(error);
     if (classified.kind === "auth") {
+      // Permanent: the refresh token is revoked/expired — mark for reconnect (ADR-019).
       await applyConnectionStatus(params.pool, params.workspaceId, params.connectionId, "expired").catch(() => {});
+      await auditToken(params, "token.refresh_failed").catch(() => {});
     }
     throw classified;
   }
+}
+
+/** Token lifecycle events (no token material — details carry only the connection id). */
+async function auditToken(params: RefreshParams, event: string): Promise<void> {
+  await withWorkspace(params.pool, params.workspaceId, (tx) =>
+    tx.query(
+      `INSERT INTO audit_log (workspace_id, actor, event, details) VALUES ($1, 'vault', $2, $3::jsonb)`,
+      [params.workspaceId, event, JSON.stringify({ connectionId: params.connectionId })],
+    ),
+  );
 }
