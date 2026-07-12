@@ -10,3 +10,5 @@ export { createGscIngestionHandler, registerGscQuotaKeys } from "./ingestion.js"
 export type { IngestionDeps, IngestionJobPayload } from "./ingestion.js";
 export { createDetectionHandler } from "./detection.js";
 export type { DetectionDeps, DetectionJobPayload } from "./detection.js";
+export { createGrowthHandler } from "./growth.js";
+export type { GrowthDeps, GrowthJobPayload } from "./growth.js";

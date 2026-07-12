@@ -110,3 +110,39 @@ export async function runDetection(params: DetectionParams): Promise<DetectionSu
 
   return { findings: total, perDetector, windowFrom: dayString(from), windowTo: dayString(to) };
 }
+
+export interface StoredFinding {
+  id: string;
+  detector: string;
+  detectorVersion: number;
+  category: string;
+  severity: string;
+  confidence: string;
+  entity: string;
+  data: Record<string, unknown>;
+  evidenceId: string;
+  occurredAt: Date;
+}
+
+/** Read findings for a day (occurred_at date) in the current workspace scope. */
+export async function listFindingsForDay(pool: pg.Pool, workspaceId: string, day: string): Promise<StoredFinding[]> {
+  const r = await withWorkspace(pool, workspaceId, (tx) =>
+    tx.query(
+      `SELECT id, detector, detector_version, category, severity, confidence, entity, data, evidence_id, occurred_at
+       FROM detector_findings WHERE occurred_at::date = $1 ORDER BY entity, detector`,
+      [day],
+    ),
+  );
+  return r.rows.map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    detector: row.detector as string,
+    detectorVersion: row.detector_version as number,
+    category: row.category as string,
+    severity: row.severity as string,
+    confidence: row.confidence as string,
+    entity: row.entity as string,
+    data: row.data as Record<string, unknown>,
+    evidenceId: row.evidence_id as string,
+    occurredAt: row.occurred_at as Date,
+  }));
+}

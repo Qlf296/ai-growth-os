@@ -22,6 +22,9 @@
     },
     {
       "path": "../../packages/intelligence"
+    },
+    {
+      "path": "../../packages/growth"
     }
   ]
 }

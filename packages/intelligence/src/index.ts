@@ -7,5 +7,5 @@ export { loadRules, setWorkspaceRule } from "./rules.js";
 export type { DetectorRule } from "./rules.js";
 export { ALL_DETECTORS, aggregatePages, strikingDistance, ctrGap, impressionDrop, clickDrop } from "./detectors/index.js";
 export type { Detector, DetectorInput, Finding, PageAggregate } from "./detectors/types.js";
-export { runDetection } from "./engine.js";
-export type { DetectionParams, DetectionSummary } from "./engine.js";
+export { runDetection, listFindingsForDay } from "./engine.js";
+export type { DetectionParams, DetectionSummary, StoredFinding } from "./engine.js";

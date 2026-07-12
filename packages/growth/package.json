@@ -1,16 +1,14 @@
 {
-  "name": "@aigos/app-worker",
+  "name": "@aigos/growth",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "src/index.ts",
   "dependencies": {
-    "cron-parser": "^5.6.1",
-    "@aigos/infra": "0.1.0",
-    "@aigos/database": "0.1.0",
-    "@aigos/adapters": "0.1.0",
     "@aigos/config-registry": "0.1.0",
+    "@aigos/database": "0.1.0",
+    "@aigos/infra": "0.1.0",
     "@aigos/intelligence": "0.1.0",
-    "@aigos/growth": "0.1.0"
+    "pg": "^8.16.3"
   }
 }
