@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 
 import type pg from "pg";
 
-import { dangerouslyUnscoped, withWorkspace } from "./tenancy.js";
+import { withUser, withWorkspace } from "./tenancy.js";
 
 export interface ProvisionedIdentity {
   readonly userId: string;
@@ -24,9 +24,8 @@ export async function provisionOnSignIn(pool: pg.Pool, email: string): Promise<P
   );
   const userId = (user.rows[0] as { id: string }).id;
 
-  // memberships/workspaces are RLS'd and this lookup is BY USER across workspaces —
-  // one of the designed dangerouslyUnscoped callers ("workspace provisioning", S3 §11).
-  const existing = await dangerouslyUnscoped(pool, "provisioning: list a user's own workspaces (S6 §3)", (tx) =>
+  // User-scoped read (migration 0005): a user sees exactly their own memberships.
+  const existing = await withUser(pool, userId, (tx) =>
     tx.query(
       `SELECT m.workspace_id AS id, w.name, m.role
        FROM memberships m JOIN workspaces w ON w.id = m.workspace_id

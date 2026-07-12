@@ -51,6 +51,17 @@ describe("provisionOnSignIn", () => {
   });
 });
 
+describe("user scope does not leak (migration 0005)", () => {
+  it("withUser shows only the requesting user's memberships/workspaces", async () => {
+    const { withUser } = await import("../src/tenancy.js");
+    const me = await provisionOnSignIn(h.app, "halim@test.dev");
+    const other = await provisionOnSignIn(h.app, "other@test.dev");
+    const seen = await withUser(h.app, other.userId, (tx) => tx.query("SELECT id FROM workspaces"));
+    expect(seen.rows.map((r: { id: string }) => r.id)).toEqual([other.workspaces[0]!.id]);
+    expect(seen.rows.map((r: { id: string }) => r.id)).not.toContain(me.workspaces[0]!.id);
+  });
+});
+
 describe("isMember (workspace context check — feeds RLS scope, S6 §2)", () => {
   it("true for the owner, false for anyone else", async () => {
     const me = await provisionOnSignIn(h.app, "halim@test.dev");

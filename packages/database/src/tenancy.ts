@@ -45,6 +45,27 @@ export async function withWorkspace<T>(
   }
 }
 
+/** User-scoped READ transaction (S6 §3): SET LOCAL app.user_id — same pooler-safe discipline. */
+export async function withUser<T>(
+  pool: pg.Pool,
+  userId: string,
+  fn: (tx: Tx) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT set_config('app.user_id', $1, true)", [userId]);
+    const result = await fn({ query: client.query.bind(client) });
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 /** Same, on an already-checked-out client (used by the pooler-safety tests). */
 export async function withWorkspaceOnClient<T>(
   client: pg.ClientBase,

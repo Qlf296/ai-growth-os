@@ -1,5 +1,5 @@
 /** @aigos/database — Phase 0 step 3 (S3; I5/I8/I9; ADR-019/043/046). */
-export { withWorkspace, withWorkspaceOnClient, dangerouslyUnscoped } from "./tenancy.js";
+export { withWorkspace, withWorkspaceOnClient, withUser, dangerouslyUnscoped } from "./tenancy.js";
 export type { Tx } from "./tenancy.js";
 export { applyMigrations, MIGRATIONS_DIR } from "./migrate.js";
 export { PgConfigStore } from "./config-store.js";
