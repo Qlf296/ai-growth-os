@@ -28,6 +28,7 @@ import {
   withWorkspace,
   type TokenVault,
 } from "@aigos/database";
+import { transitionDraft } from "@aigos/action";
 import type { MagicLinkService, SessionService } from "@aigos/identity";
 import { HealthRegistry } from "@aigos/infra";
 
@@ -279,6 +280,29 @@ export function buildApiRoutes(deps: ApiDeps = {}): Record<string, Handler> {
         params: { workspaceId, connectionId, siteUrl },
       });
       json(res, 200, { scheduled: true });
+    },
+
+    "POST /drafts/transition": async (req, res) => {
+      if (!csrfOk(req)) return json(res, 403, { error: "csrf" });
+      const { pool } = auth();
+      const session = await currentSession(req);
+      if (!session) return json(res, 401, { error: "unauthenticated" });
+      const body = await readJson(req);
+      const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : "";
+      const draftId = typeof body.draftId === "string" ? body.draftId : "";
+      const to = typeof body.to === "string" ? body.to : "";
+      if (!/^[0-9a-f-]{36}$/.test(workspaceId) || !/^[0-9a-f-]{36}$/.test(draftId) || !(await isMember(pool, session.userId, workspaceId))) {
+        return json(res, 403, { error: "not_a_member" });
+      }
+      // Archive maps to reject(reason=archived) — no new lifecycle state (reuse Action package).
+      const target = to === "archived" ? "rejected" : to;
+      const reason = to === "archived" ? "archived" : (typeof body.reason === "string" ? body.reason : to);
+      try {
+        await transitionDraft(pool, workspaceId, draftId, target as never, session.userId, reason);
+        json(res, 200, { ok: true });
+      } catch (error) {
+        json(res, 409, { error: "illegal_transition", detail: error instanceof Error ? error.message : String(error) });
+      }
     },
 
     "POST /auth/request-link": async (req, res) => {

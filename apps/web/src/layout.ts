@@ -1,5 +1,6 @@
 const NAV: [string, string][] = [
   ["/", "Today"],
+  ["/actions", "Actions"],
   ["/experiments", "Experiments"],
   ["/learnings", "Learnings"],
   ["/settings", "Settings"],
