@@ -283,3 +283,27 @@ export function notificationsPage(email: string, entries: NotificationEntry[]): 
     : "";
   return appPage("/notifications", "Notifications", email, `${intro}${categories.map(section).join("")}`);
 }
+
+export interface AdminView {
+  workspaceName: string;
+  region: string;
+  planId: string;
+  limits: Record<string, unknown>;
+  members: { email: string; role: string }[];
+  usage: { requests: number; costEur: number; inputTokens: number; outputTokens: number };
+}
+
+/** Workspace Administration (STEP 6.7) — from memberships/plans/llm_calls; membership-gated. */
+export function adminPage(email: string, v: AdminView): string {
+  const members = v.members.map((m) => `<tr><td>${esc(m.email)}</td><td class="muted">${esc(m.role)}</td></tr>`).join("");
+  const limits = Object.entries(v.limits).map(([k, val]) => `${esc(k)}: ${esc(String(val))}`).join(" · ") || "none";
+  return appPage("/admin", "Administration", email, `
+    <h2 style="font-size:15px;margin:16px 0 4px">Workspace</h2>
+    <p class="muted">${esc(v.workspaceName)} · region ${esc(v.region)}</p>
+    <h2 style="font-size:15px;margin:16px 0 4px">Members &amp; roles</h2>
+    <table style="width:100%;font-size:14px">${members}</table>
+    <h2 style="font-size:15px;margin:16px 0 4px">Plan &amp; limits</h2>
+    <p class="muted">plan ${esc(v.planId)} · ${limits}</p>
+    <h2 style="font-size:15px;margin:16px 0 4px">Usage</h2>
+    <p class="muted">${v.usage.requests} AI requests · ${v.usage.inputTokens}+${v.usage.outputTokens} tokens · €${esc(v.usage.costEur.toFixed(4))}</p>`);
+}

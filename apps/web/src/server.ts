@@ -12,7 +12,7 @@ import { getOpportunityDetail } from "@aigos/growth";
 
 import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 
-import { actionsPage, confirmPage, connectionsPage, experimentsPage, loginPage, notificationsPage, opportunityPage, sectionPage, settingsPage, todayPage, SECTION_PATHS } from "./pages.js";
+import { actionsPage, adminPage, confirmPage, connectionsPage, experimentsPage, loginPage, notificationsPage, opportunityPage, sectionPage, settingsPage, todayPage, SECTION_PATHS } from "./pages.js";
 
 const html = (res: ServerResponse, status: number, body: string): void => {
   res.writeHead(status, { "content-type": "text/html; charset=utf-8" });
@@ -82,6 +82,25 @@ export function createWebServer(deps: WebDeps = {}): Server {
         const detail = await getOpportunityDetail(pool, first.id, id);
         if (!detail) return json(res, 404, { error: "not_found" });
         return html(res, 200, opportunityPage(user.email, detail));
+      }
+      if (method === "GET" && path === "/admin") {
+        const user = await currentUser(req);
+        if (!user) return redirect(res, "/login");
+        const pool = deps.pool!;
+        const first = (await listUserWorkspaces(pool, user.id))[0]!;
+        const view = await withWorkspace(pool, first.id, async (tx) => {
+          const w = await tx.query(`SELECT w.name, w.region, w.plan_id, p.limits FROM workspaces w JOIN plans p ON p.id = w.plan_id WHERE w.id = $1`, [first.id]);
+          const m = await tx.query(`SELECT u.email, m.role FROM memberships m JOIN users u ON u.id = m.user_id ORDER BY m.created_at`);
+          const u = await tx.query(`SELECT count(*)::int AS requests, coalesce(sum(cost_eur),0)::float AS cost, coalesce(sum(input_tokens),0)::int AS it, coalesce(sum(output_tokens),0)::int AS ot FROM llm_calls`);
+          const wr = w.rows[0] as Record<string, unknown>;
+          const ur = u.rows[0] as Record<string, unknown>;
+          return {
+            workspaceName: wr.name as string, region: wr.region as string, planId: wr.plan_id as string, limits: wr.limits as Record<string, unknown>,
+            members: (m.rows as Array<{ email: string; role: string }>),
+            usage: { requests: ur.requests as number, costEur: ur.cost as number, inputTokens: ur.it as number, outputTokens: ur.ot as number },
+          };
+        });
+        return html(res, 200, adminPage(user.email, view));
       }
       if (method === "GET" && path === "/notifications") {
         const user = await currentUser(req);
