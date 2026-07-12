@@ -26,7 +26,7 @@ describe("scheduler tick", () => {
       windowStart: new Date("2026-07-12T05:59:00Z"),
       now: new Date("2026-07-12T06:00:30Z"),
     });
-    expect(enqueued).toEqual(["canary.spine:2026-07-12T06:00:00.000Z"]);
+    expect(enqueued).toEqual(["canary.spine:d1:2026-07-12T06:00:00.000Z"]);
   });
 
   it("does nothing when no occurrence falls in the window", async () => {
@@ -58,7 +58,7 @@ describe("scheduler tick", () => {
       windowStart: new Date("2026-07-12T05:59:00Z"),
       now: new Date("2026-07-12T06:00:30Z"),
     });
-    expect(enqueued).toEqual(["canary.spine:2026-07-12T06:00:00.000Z"]);
+    expect(enqueued).toEqual(["canary.spine:d1:2026-07-12T06:00:00.000Z"]);
   });
 
   it("payload carries family, params and workspace scope for the dispatcher", async () => {

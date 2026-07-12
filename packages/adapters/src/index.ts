@@ -11,3 +11,5 @@ export type {
   HealthResult,
 } from "./types.js";
 export * from "./gsc/index.js";
+export { InMemoryRateCounter, RedisRateCounter, QuotaGuard } from "./quota.js";
+export type { QuotaLimits, RateCounter, RedisCounterLike } from "./quota.js";

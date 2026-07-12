@@ -45,7 +45,7 @@ export async function tick(
       continue; // invalid cron: skip this definition, never break the tick (isolation)
     }
     if (!occurrence) continue;
-    const jobId = `${def.jobFamily}:${occurrence.toISOString()}`;
+    const jobId = `${def.jobFamily}:${def.id}:${occurrence.toISOString()}`;
     await queue.enqueue({
       jobId,
       payload: {
