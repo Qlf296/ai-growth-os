@@ -10,10 +10,11 @@ import { ConnectionRepository, getSyncState, listUserWorkspaces, withWorkspace }
 import { buildDigest, listDrafts, usageSummary } from "@aigos/action";
 import { getOpportunityDetail } from "@aigos/growth";
 import { listExecutions, listExperiments, listRules } from "@aigos/automation";
+import { analyticsSummary } from "@aigos/analytics";
 
 import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 
-import { actionsPage, adminPage, automationsPage, confirmPage, connectionsPage, experimentsDataPage, loginPage, notificationsPage, opportunityPage, sectionPage, settingsPage, todayPage, usagePage, SECTION_PATHS } from "./pages.js";
+import { actionsPage, adminPage, automationsPage, confirmPage, connectionsPage, experimentsDataPage, learningsPage, loginPage, notificationsPage, opportunityPage, sectionPage, settingsPage, todayPage, usagePage, SECTION_PATHS } from "./pages.js";
 
 const html = (res: ServerResponse, status: number, body: string): void => {
   // Per-user SSR: never store in shared caches (correctness + performance hygiene).
@@ -143,6 +144,13 @@ export function createWebServer(deps: WebDeps = {}): Server {
         const pool = deps.pool!;
         const first = (await listUserWorkspaces(pool, user.id))[0]!;
         return html(res, 200, experimentsDataPage(user.email, await listExperiments(pool, first.id)));
+      }
+      if (method === "GET" && path === "/learnings") {
+        const user = await currentUser(req);
+        if (!user) return redirect(res, "/login");
+        const pool = deps.pool!;
+        const first = (await listUserWorkspaces(pool, user.id))[0]!;
+        return html(res, 200, learningsPage(user.email, await analyticsSummary(pool, first.id)));
       }
       if (method === "GET" && path === "/automations") {
         const user = await currentUser(req);

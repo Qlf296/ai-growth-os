@@ -91,9 +91,7 @@ export const confirmPage = (token: string): string =>
        if(r.ok){location.href='/';}else{document.getElementById('m').textContent='This link is invalid or has expired.';}});</script>`,
   );
 
-const SECTIONS: Record<string, { title: string; empty: string }> = {
-  "/learnings": { title: "Learnings", empty: "Nothing learned yet — learnings appear as actions complete and outcomes are measured." },
-};
+const SECTIONS: Record<string, { title: string; empty: string }> = {};
 
 
 export interface SettingsContext {
@@ -334,4 +332,22 @@ export function experimentsDataPage(email: string, experiments: import("@aigos/a
   };
   const intro = experiments.length === 0 ? `<p class="muted">No experiments yet — experiments appear when you accept a recommendation and start measuring its outcome.</p>` : "";
   return appPage("/experiments", "Experiments", email, `${intro}${section("Running", "running")}${section("Completed", "completed")}${section("Archived", "archived")}`);
+}
+
+/** Learnings page (STEP 8.4) — measured outcomes, grades, track record; every claim carries evidence. */
+export function learningsPage(email: string, s: import("@aigos/analytics").AnalyticsSummary): string {
+  if (s.totalMeasured === 0) {
+    return appPage("/learnings", "Learnings", email, `<p class="muted">Nothing learned yet — learnings appear as actions complete and outcomes are measured (about 28 days after the first completed action).</p>`);
+  }
+  const grades = Object.entries(s.gradeCounts).map(([g, n]) => `${esc(g)}: ${n}`).join(" · ") || "none";
+  const outcomes = s.outcomes.map((o) => `<tr><td>${esc(o.metric)}</td><td>${esc(o.verdict)}</td><td>${esc(o.grade ?? "—")}</td><td><code>${esc(o.evidenceReferenceId)}</code></td><td class="muted">${esc(o.evaluatedAt.slice(0,10))}</td></tr>`).join("");
+  const tr = s.trackRecord.map((t) => `<tr><td>${esc(t.detector)}</td><td>${t.score === null ? "insufficient data" : t.score.toFixed(2)}</td><td>${t.samples}</td><td>${esc(t.health)}</td></tr>`).join("");
+  return appPage("/learnings", "Learnings", email, `
+    <div style="margin:8px 0;padding:12px 16px;background:#f5f5f5;border-radius:8px;font-size:14px">
+      <strong>Track record</strong> · of ${s.totalMeasured} measured: ${s.met} met · ${s.partial} partial · ${s.notMet} not met · ${s.unmeasurable} unmeasurable · grades ${grades}
+    </div>
+    <h2 style="font-size:15px;margin:16px 0 4px">Outcomes (evidence-referenced)</h2>
+    <table style="width:100%;font-size:13px"><tr><th align=left>Metric</th><th align=left>Verdict</th><th align=left>Grade</th><th align=left>Evidence</th><th align=left>When</th></tr>${outcomes}</table>
+    <h2 style="font-size:15px;margin:16px 0 4px">Detector track record</h2>
+    <table style="width:100%;font-size:13px"><tr><th align=left>Detector</th><th align=left>Score</th><th align=left>Samples</th><th align=left>Health</th></tr>${tr || '<tr><td class="muted">none</td></tr>'}</table>`);
 }
