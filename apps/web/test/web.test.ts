@@ -34,6 +34,7 @@ beforeAll(async () => {
     pool: h.app,
     magic: new MagicLinkService(h.app, delivery, () => new Date(), { baseUrl: "https://app.test" }),
     sessions,
+    clock: () => new Date("2026-07-12T09:00:00Z"),
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const addr = server.address();
@@ -117,6 +118,24 @@ describe("app pages (S5 sections)", () => {
       expect(html).toContain("halim@test.dev");
       expect(html).toContain('name="viewport"');
     }
+  });
+});
+
+describe("Today — empty dashboard (S5 §1 anatomy, §8 truthful zero-state)", () => {
+  it("renders the localized date header, workspace context and plan", async () => {
+    const res = await get("/", { cookie: `sid=${sid}` });
+    const html = await res.text();
+    expect(html).toContain("dimanche 12 juillet"); // user locale fr (S3 §2 default)
+    expect(html).toContain("halim&#39;s workspace");
+    expect(html).toContain("free");
+  });
+
+  it("zero-state is honest and points to the prerequisite (ADR-015: connect GSC first)", async () => {
+    const res = await get("/", { cookie: `sid=${sid}` });
+    const html = await res.text();
+    expect(html).toContain("No actions yet");
+    expect(html).toContain("Google Search Console");
+    expect(html).not.toMatch(/lorem|placeholder|coming soon/i);
   });
 });
 

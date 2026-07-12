@@ -1,4 +1,28 @@
-import { appPage, standalonePage } from "./layout.js";
+import { appPage, esc, standalonePage } from "./layout.js";
+
+export interface TodayContext {
+  readonly email: string;
+  readonly locale: string;
+  readonly workspaceName: string;
+  readonly planId: string;
+  readonly date: Date;
+}
+
+export function todayPage(ctx: TodayContext): string {
+  const dateLabel = new Intl.DateTimeFormat(ctx.locale, {
+    weekday: "long", day: "numeric", month: "long",
+  }).format(ctx.date);
+  return appPage(
+    "/",
+    "Today",
+    ctx.email,
+    `<p class="muted">${esc(dateLabel)} · ${esc(ctx.workspaceName)} · plan ${esc(ctx.planId)}</p>
+     <div style="margin-top:24px;padding:24px;border:1px dashed #ccc;border-radius:8px;background:#fff">
+       <p>No actions yet.</p>
+       <p class="muted">Your feed starts with your first data source — connect Google Search Console to generate your first personalized actions from your real search data.</p>
+     </div>`,
+  );
+}
 
 export const loginPage = (): string =>
   standalonePage(
@@ -24,7 +48,6 @@ export const confirmPage = (token: string): string =>
   );
 
 const SECTIONS: Record<string, { title: string; empty: string }> = {
-  "/": { title: "Today", empty: "No actions yet. Connect a data source to get your first recommendations." },
   "/experiments": { title: "Experiments", empty: "No experiments yet." },
   "/learnings": { title: "Learnings", empty: "Nothing learned yet — learnings appear as actions complete and outcomes are measured." },
   "/settings": { title: "Settings", empty: "Settings arrive in the next step." },

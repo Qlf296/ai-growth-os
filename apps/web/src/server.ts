@@ -5,9 +5,11 @@
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
+import { listUserWorkspaces, withWorkspace } from "@aigos/database";
+
 import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 
-import { confirmPage, loginPage, sectionPage, SECTION_PATHS } from "./pages.js";
+import { confirmPage, loginPage, sectionPage, todayPage, SECTION_PATHS } from "./pages.js";
 
 const html = (res: ServerResponse, status: number, body: string): void => {
   res.writeHead(status, { "content-type": "text/html; charset=utf-8" });
@@ -19,17 +21,22 @@ const redirect = (res: ServerResponse, location: string): void => {
   res.end();
 };
 
-export function createWebServer(deps: ApiDeps = {}): Server {
-  const api = buildApiRoutes(deps);
+export interface WebDeps extends ApiDeps {
+  readonly clock?: () => Date;
+}
 
-  const currentUser = async (req: IncomingMessage): Promise<{ email: string } | null> => {
+export function createWebServer(deps: WebDeps = {}): Server {
+  const api = buildApiRoutes(deps);
+  const clock = deps.clock ?? (() => new Date());
+
+  const currentUser = async (req: IncomingMessage): Promise<{ id: string; email: string; locale: string } | null> => {
     const { pool, sessions } = deps;
     if (!pool || !sessions) return null;
     const sid = cookies(req).sid;
     const session = sid ? await sessions.validate(sid) : null;
     if (!session) return null;
-    const user = await pool.query(`SELECT email FROM users WHERE id = $1`, [session.userId]);
-    return user.rows[0] as { email: string };
+    const user = await pool.query(`SELECT id, email, locale FROM users WHERE id = $1`, [session.userId]);
+    return user.rows[0] as { id: string; email: string; locale: string };
   };
 
   return createServer((req, res) => {
@@ -45,6 +52,20 @@ export function createWebServer(deps: ApiDeps = {}): Server {
       if (method === "GET" && path === "/auth/confirm") {
         const token = url.searchParams.get("token") ?? "";
         return /^[a-f0-9]{64}$/.test(token) ? html(res, 200, confirmPage(token)) : redirect(res, "/login");
+      }
+      if (method === "GET" && path === "/") {
+        const user = await currentUser(req);
+        if (!user) return redirect(res, "/login");
+        const pool = deps.pool!;
+        const workspaces = await listUserWorkspaces(pool, user.id); // single-workspace UI (ADR-018 Model A)
+        const first = workspaces[0]!;
+        const ws = await withWorkspace(pool, first.id, (tx) =>
+          tx.query(`SELECT name, plan_id FROM workspaces WHERE id = $1`, [first.id]),
+        );
+        const row = ws.rows[0] as { name: string; plan_id: string };
+        return html(res, 200, todayPage({
+          email: user.email, locale: user.locale, workspaceName: row.name, planId: row.plan_id, date: clock(),
+        }));
       }
       if (method === "GET" && SECTION_PATHS.includes(path)) {
         const user = await currentUser(req);
