@@ -19,6 +19,7 @@ let base: string;
 let sessions: SessionService;
 let userId = "";
 let otherUserId = "";
+let myWorkspaceId = "";
 let sidCurrent = "";
 let sidPhone = "";
 let sidOtherUser = "";
@@ -43,6 +44,7 @@ beforeAll(async () => {
   const me = await provisionOnSignIn(h.app, "halim@test.dev");
   const other = await provisionOnSignIn(h.app, "other@test.dev");
   userId = me.userId;
+  myWorkspaceId = me.workspaces[0]!.id;
   otherUserId = other.userId;
   sidCurrent = (await sessions.issue(userId, "node-other", "127.0.0.1")).sessionId;
   sidPhone = (await sessions.issue(userId, "safari-ios", "10.0.0.9")).sessionId;
@@ -87,6 +89,26 @@ describe("settings page (SSR)", () => {
     expect(html).toContain("safari-ios");                // device list
     expect(html).toContain("This device");
     expect(html).toContain("Sign out all other devices");
+  });
+
+  it("renders a Connections section: Connect button when GSC is not connected", async () => {
+    const html = await (await get("/settings", sidCurrent)).text();
+    expect(html).toContain("Connections");
+    expect(html).toContain("Connect Google Search Console");
+    expect(html).toContain("/connections/google/authorize");
+  });
+
+  it("shows GSC as connected once a connection exists", async () => {
+    const { withWorkspace, ConnectionRepository } = await import("@aigos/database");
+    await withWorkspace(h.app, myWorkspaceId, (tx) =>
+      new ConnectionRepository().create(tx, {
+        provider: "gsc", scopes: ["https://www.googleapis.com/auth/webmasters.readonly"],
+        capabilities: { read_search_analytics: true }, authorizedBy: userId,
+      }),
+    );
+    const html = await (await get("/settings", sidCurrent)).text();
+    expect(html).toContain("Google Search Console");
+    expect(html).toContain("active");
     expect(html).toContain("Sign out");
   });
 });

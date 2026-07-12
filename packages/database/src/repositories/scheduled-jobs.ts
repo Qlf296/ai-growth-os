@@ -1,7 +1,7 @@
 /** Scheduled jobs — schedules are data (ADR-003, S3 §10). Reader for the worker's tick. */
 import type pg from "pg";
 
-import { dangerouslyUnscoped } from "../tenancy.js";
+import { dangerouslyUnscoped, withWorkspace } from "../tenancy.js";
 
 export interface ScheduledJobRow {
   id: string;
@@ -30,4 +30,26 @@ export async function listEnabledSystemJobs(pool: pg.Pool): Promise<ScheduledJob
     schedule: row.schedule as string,
     params: row.params as Record<string, unknown>,
   }));
+}
+
+/**
+ * Persist an enabled workspace-scoped recurring job (schedules-as-data,
+ * ADR-003). Idempotent per (workspace, job_family, params): connecting the
+ * same site twice does not create a duplicate schedule.
+ */
+export async function scheduleWorkspaceJob(
+  pool: pg.Pool,
+  input: { workspaceId: string; jobFamily: string; schedule: string; params: Record<string, unknown> },
+): Promise<void> {
+  await withWorkspace(pool, input.workspaceId, (tx) =>
+    tx.query(
+      `INSERT INTO scheduled_jobs (workspace_id, job_family, schedule, params, enabled)
+       SELECT $1, $2, $3, $4::jsonb, true
+       WHERE NOT EXISTS (
+         SELECT 1 FROM scheduled_jobs
+         WHERE workspace_id = $1 AND job_family = $2 AND params = $4::jsonb
+       )`,
+      [input.workspaceId, input.jobFamily, input.schedule, JSON.stringify(input.params)],
+    ),
+  );
 }

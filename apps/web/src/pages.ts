@@ -55,11 +55,15 @@ const SECTIONS: Record<string, { title: string; empty: string }> = {
 export interface SettingsContext {
   readonly email: string;
   readonly locale: string;
+  readonly workspaceId: string;
   readonly workspaceName: string;
   readonly region: string;
   readonly planId: string;
   readonly devices: { id: string; uaFamily: string; createdAt: string; current: boolean }[];
+  readonly connections: { provider: string; status: string }[];
 }
+
+const PROVIDER_LABELS: Record<string, string> = { gsc: "Google Search Console" };
 
 export function settingsPage(ctx: SettingsContext): string {
   const rows = ctx.devices
@@ -79,6 +83,14 @@ export function settingsPage(ctx: SettingsContext): string {
      <p class="muted">${esc(ctx.email)} · locale ${esc(ctx.locale)}</p>
      <h2 style="font-size:15px;margin:16px 0 4px">Workspace</h2>
      <p class="muted">${esc(ctx.workspaceName)} · region ${esc(ctx.region)} · plan ${esc(ctx.planId)}</p>
+     <h2 style="font-size:15px;margin:16px 0 4px">Connections</h2>
+     ${ctx.connections.some((c) => c.provider === "gsc")
+       ? ctx.connections
+           .filter((c) => c.provider === "gsc")
+           .map((c) => `<p class="muted">${esc(PROVIDER_LABELS[c.provider] ?? c.provider)} · ${esc(c.status)}</p>`)
+           .join("")
+       : `<p class="muted">Connect a data source to start your feed.</p>
+          <a href="/connections/google/authorize?workspaceId=${esc(ctx.workspaceId)}"><button style="width:auto;padding:8px 12px">Connect Google Search Console</button></a>`}
      <h2 style="font-size:15px;margin:16px 0 4px">Devices</h2>
      <table style="width:100%;font-size:14px;border-collapse:collapse">${rows}</table>
      <button id="others" style="width:auto;margin-top:12px;padding:8px 12px">Sign out all other devices</button>

@@ -21,6 +21,7 @@ import {
   isMember,
   listUserWorkspaces,
   provisionOnSignIn,
+  scheduleWorkspaceJob,
   withWorkspace,
   type TokenVault,
 } from "@aigos/database";
@@ -152,8 +153,9 @@ export function buildApiRoutes(deps: ApiDeps = {}): Record<string, Handler> {
       if (!/^[0-9a-f-]{36}$/.test(workspaceId) || !(await isMember(pool, session.userId, workspaceId))) {
         return json(res, 403, { error: "not_a_member" });
       }
+      const site = url.searchParams.get("site") ?? undefined;
       const state = signOAuthState(
-        { workspaceId, userId: session.userId, expiresAt: Date.now() + 10 * 60_000 },
+        { workspaceId, userId: session.userId, expiresAt: Date.now() + 10 * 60_000, ...(site ? { site } : {}) },
         oauth.stateHmacKey,
       );
       json(res, 200, {
@@ -204,8 +206,19 @@ export function buildApiRoutes(deps: ApiDeps = {}): Record<string, Handler> {
         refreshToken: exchanged.refreshToken ?? null,
         expiresAt: new Date(Date.now() + exchanged.expiresInSeconds * 1000),
       });
+      // First ingestion: schedule the daily GSC job (schedules-as-data → scheduler → queue → pipeline).
+      let scheduledIngestion = false;
+      if (statePayload.site) {
+        await scheduleWorkspaceJob(pool, {
+          workspaceId: statePayload.workspaceId,
+          jobFamily: "gsc.ingest.daily",
+          schedule: "0 6 * * *",
+          params: { workspaceId: statePayload.workspaceId, connectionId, siteUrl: statePayload.site },
+        });
+        scheduledIngestion = true;
+      }
       // I8: id/provider/status only — never token material, never scopes echoing secrets
-      json(res, 200, { connection: { id: connectionId, provider: "gsc", status: "active" } });
+      json(res, 200, { connection: { id: connectionId, provider: "gsc", status: "active" }, scheduledIngestion });
     },
 
     "POST /auth/request-link": async (req, res) => {

@@ -5,7 +5,7 @@
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
-import { listUserWorkspaces, withWorkspace } from "@aigos/database";
+import { ConnectionRepository, listUserWorkspaces, withWorkspace } from "@aigos/database";
 
 import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 
@@ -81,8 +81,12 @@ export function createWebServer(deps: WebDeps = {}): Server {
         const devices = (await deps.sessions!.listActiveForUser(user.id)).map((d) => ({
           id: d.sessionId, uaFamily: d.uaFamily, createdAt: d.createdAt, current: d.sessionId === sid,
         }));
+        const connections = (
+          await withWorkspace(pool, first.id, (tx) => new ConnectionRepository().list(tx))
+        ).map((c) => ({ provider: c.provider, status: c.status }));
         return html(res, 200, settingsPage({
-          email: user.email, locale: user.locale, workspaceName: row.name, region: row.region, planId: row.plan_id, devices,
+          email: user.email, locale: user.locale, workspaceId: first.id, workspaceName: row.name,
+          region: row.region, planId: row.plan_id, devices, connections,
         }));
       }
       if (method === "GET" && SECTION_PATHS.includes(path)) {

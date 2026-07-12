@@ -38,6 +38,8 @@ export interface OAuthStatePayload {
   readonly workspaceId: string;
   readonly userId: string;
   readonly expiresAt: number; // epoch ms
+  /** GSC property the user chose to connect; drives first-ingestion scheduling. */
+  readonly site?: string;
 }
 
 const b64url = (buf: Buffer): string => buf.toString("base64url");

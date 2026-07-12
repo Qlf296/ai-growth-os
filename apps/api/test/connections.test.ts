@@ -120,6 +120,29 @@ describe("GET /connections/google/callback", () => {
     expect(audit.rows[0].n).toBe(1);
   });
 
+  it("connecting with a chosen site schedules the first ingestion job (reuses scheduled_jobs → scheduler → queue → ingestion)", async () => {
+    const site = "sc-domain:forgcv.com";
+    const authorize = await get(
+      `/connections/google/authorize?workspaceId=${myWorkspaceId}&site=${encodeURIComponent(site)}`,
+      `sid=${sid}`,
+    );
+    const withSiteState = new URL(((await authorize.json()) as { url: string }).url).searchParams.get("state")!;
+    const res = await get(
+      `/connections/google/callback?code=good-code&state=${encodeURIComponent(withSiteState)}`,
+      `sid=${sid}`,
+    );
+    expect(res.status).toBe(200);
+    const body = JSON.parse(await res.text()) as { connection: { id: string }; scheduledIngestion: boolean };
+    expect(body.scheduledIngestion).toBe(true);
+    const job = await h.admin.query(
+      `SELECT job_family, enabled, params FROM scheduled_jobs WHERE workspace_id = $1 AND job_family = 'gsc.ingest.daily'`,
+      [myWorkspaceId],
+    );
+    expect(job.rowCount).toBe(1);
+    expect(job.rows[0].enabled).toBe(true);
+    expect(job.rows[0].params).toMatchObject({ workspaceId: myWorkspaceId, connectionId: body.connection.id, siteUrl: site });
+  });
+
   it("replayed/foreign/expired state → generic 400; provider auth failure → generic 401", async () => {
     const replay = await get(`/connections/google/callback?code=good-code&state=${encodeURIComponent(state)}`, `sid=${sidOther}`);
     expect(replay.status).toBe(400); // state bound to another user
