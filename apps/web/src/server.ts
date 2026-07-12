@@ -12,7 +12,7 @@ import { getOpportunityDetail } from "@aigos/growth";
 
 import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 
-import { actionsPage, confirmPage, loginPage, opportunityPage, sectionPage, settingsPage, todayPage, SECTION_PATHS } from "./pages.js";
+import { actionsPage, confirmPage, experimentsPage, loginPage, opportunityPage, sectionPage, settingsPage, todayPage, SECTION_PATHS } from "./pages.js";
 
 const html = (res: ServerResponse, status: number, body: string): void => {
   res.writeHead(status, { "content-type": "text/html; charset=utf-8" });
@@ -82,6 +82,12 @@ export function createWebServer(deps: WebDeps = {}): Server {
         const detail = await getOpportunityDetail(pool, first.id, id);
         if (!detail) return json(res, 404, { error: "not_found" });
         return html(res, 200, opportunityPage(user.email, detail));
+      }
+      if (method === "GET" && path === "/experiments") {
+        const user = await currentUser(req);
+        if (!user) return redirect(res, "/login");
+        // Read-only, grouped by state. No experiment model yet → honest empty groups (no fake data).
+        return html(res, 200, experimentsPage(user.email, { running: [], completed: [], archived: [] }));
       }
       if (method === "GET" && path === "/actions") {
         const user = await currentUser(req);

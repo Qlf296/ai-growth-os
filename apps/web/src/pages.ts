@@ -92,9 +92,36 @@ export const confirmPage = (token: string): string =>
   );
 
 const SECTIONS: Record<string, { title: string; empty: string }> = {
-  "/experiments": { title: "Experiments", empty: "No experiments yet." },
   "/learnings": { title: "Learnings", empty: "Nothing learned yet — learnings appear as actions complete and outcomes are measured." },
 };
+
+export interface ExperimentRow {
+  id: string;
+  hypothesis: string;
+  expectedImpact: string;
+  confidence: string;
+  metrics: string;
+  recommendationSource: string;
+}
+
+/** Experiments page (STEP 6.4) — read-only, grouped by state. Empty until the Experiment Engine runs. */
+export function experimentsPage(email: string, groups: { running: ExperimentRow[]; completed: ExperimentRow[]; archived: ExperimentRow[] }): string {
+  const section = (label: string, rows: ExperimentRow[]): string => {
+    const body = rows.length === 0
+      ? `<p class="muted">No ${label.toLowerCase()} experiments.</p>`
+      : rows.map((e) => `<div style="padding:12px;border:1px solid #e5e5e5;border-radius:8px;background:#fff;margin-bottom:8px">
+          <strong>${esc(e.hypothesis)}</strong>
+          <p class="muted">expected impact ${esc(e.expectedImpact)} · confidence ${esc(e.confidence)}</p>
+          <p class="muted">metrics: ${esc(e.metrics)} · source: ${esc(e.recommendationSource)}</p></div>`).join("");
+    return `<h2 style="font-size:15px;margin:16px 0 4px">${esc(label)}</h2>${body}`;
+  };
+  const total = groups.running.length + groups.completed.length + groups.archived.length;
+  const intro = total === 0
+    ? `<p class="muted">No experiments yet — experiments appear when you accept a recommendation and start measuring its outcome.</p>`
+    : "";
+  return appPage("/experiments", "Experiments", email,
+    `${intro}${section("Running", groups.running)}${section("Completed", groups.completed)}${section("Archived", groups.archived)}`);
+}
 
 export interface SettingsContext {
   readonly email: string;
