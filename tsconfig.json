@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/domain" },
+    { "path": "packages/config-registry" },
+    { "path": "packages/database" },
+    { "path": "packages/ai-gateway" },
+    { "path": "packages/delivery" },
+    { "path": "packages/adapters" },
+    { "path": "apps/api" },
+    { "path": "apps/worker" },
+    { "path": "apps/web" }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "ai-growth-os",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "test:arch": "depcruise apps packages --config .dependency-cruiser.cjs",
+    "typecheck": "tsc -b"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^18.0.0",
+    "typescript": "^5.9.3"
+  }
+}
