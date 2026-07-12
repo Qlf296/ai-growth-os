@@ -9,3 +9,5 @@ export { analyticsSummary } from "./reports.js";
 export type { AnalyticsSummary, OutcomeReportRow, TrackRecordRow } from "./reports.js";
 export { evaluatePromotion, promoteKnowledge } from "./knowledge.js";
 export type { EpistemicLevel, PromotionCriteria, PromotionInput } from "./knowledge.js";
+export { resolveAttribution } from "./attribution.js";
+export type { AttributionSources, AttributionSource, ResolvedAttribution } from "./attribution.js";
