@@ -15,6 +15,22 @@ export interface ProvisionedIdentity {
   readonly workspaces: { id: string; name: string; role: string }[];
 }
 
+/** A user's own workspaces (user-scoped read, migration 0005). */
+export async function listUserWorkspaces(
+  pool: pg.Pool,
+  userId: string,
+): Promise<ProvisionedIdentity["workspaces"]> {
+  const r = await withUser(pool, userId, (tx) =>
+    tx.query(
+      `SELECT m.workspace_id AS id, w.name, m.role
+       FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
+       WHERE m.user_id = $1`,
+      [userId],
+    ),
+  );
+  return r.rows as ProvisionedIdentity["workspaces"];
+}
+
 export async function provisionOnSignIn(pool: pg.Pool, email: string): Promise<ProvisionedIdentity> {
   const user = await pool.query(
     `INSERT INTO users (email, auth_provider) VALUES ($1, 'magic_link')
@@ -24,17 +40,9 @@ export async function provisionOnSignIn(pool: pg.Pool, email: string): Promise<P
   );
   const userId = (user.rows[0] as { id: string }).id;
 
-  // User-scoped read (migration 0005): a user sees exactly their own memberships.
-  const existing = await withUser(pool, userId, (tx) =>
-    tx.query(
-      `SELECT m.workspace_id AS id, w.name, m.role
-       FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
-       WHERE m.user_id = $1`,
-      [userId],
-    ),
-  );
-  if (existing.rowCount) {
-    return { userId, workspaces: existing.rows as ProvisionedIdentity["workspaces"] };
+  const existing = await listUserWorkspaces(pool, userId);
+  if (existing.length) {
+    return { userId, workspaces: existing };
   }
 
   const workspaceId = randomUUID();

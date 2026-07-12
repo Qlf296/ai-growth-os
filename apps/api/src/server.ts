@@ -8,7 +8,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 
 import type pg from "pg";
 
-import { provisionOnSignIn } from "@aigos/database";
+import { isMember, listUserWorkspaces, provisionOnSignIn, withWorkspace } from "@aigos/database";
 import type { MagicLinkService, SessionService } from "@aigos/identity";
 import { HealthRegistry } from "@aigos/infra";
 
@@ -37,6 +37,13 @@ export function createApiServer(deps: ApiDeps = {}): Server {
 
   const csrfOk = (req: IncomingMessage): boolean => req.headers["x-csrf"] === "1";
 
+  /** Authenticated session from the sid cookie — null means 401. */
+  const currentSession = async (req: IncomingMessage) => {
+    const { sessions } = auth();
+    const sid = cookies(req).sid;
+    return sid ? sessions.validate(sid) : null;
+  };
+
   const setSessionCookies = (res: ServerResponse, sessionId: string, refreshToken: string): void => {
     res.setHeader("set-cookie", [
       sessionCookie("sid", sessionId, ACCESS_COOKIE_SECONDS),
@@ -48,6 +55,34 @@ export function createApiServer(deps: ApiDeps = {}): Server {
     "GET /health": async (_req, res) => {
       const report = await health.run();
       json(res, report.healthy ? 200 : 503, { status: report.healthy ? "ok" : "degraded", checks: report.checks });
+    },
+
+    "GET /me": async (req, res) => {
+      const { pool } = auth();
+      const session = await currentSession(req);
+      if (!session) return json(res, 401, { error: "unauthenticated" });
+      const user = await pool.query(`SELECT id, email, locale FROM users WHERE id = $1`, [session.userId]);
+      const workspaces = await listUserWorkspaces(pool, session.userId);
+      json(res, 200, { user: user.rows[0], workspaces });
+    },
+
+    "GET /me/workspace": async (req, res) => {
+      const { pool } = auth();
+      const session = await currentSession(req);
+      if (!session) return json(res, 401, { error: "unauthenticated" });
+      const workspaceId = typeof req.headers["x-workspace-id"] === "string" ? req.headers["x-workspace-id"] : "";
+      if (!/^[0-9a-f-]{36}$/.test(workspaceId) || !(await isMember(pool, session.userId, workspaceId))) {
+        return json(res, 403, { error: "not_a_member" }); // membership check gates the RLS scope (S6 §2)
+      }
+      // per-request RLS scope: everything below runs inside SET LOCAL app.workspace_id
+      const ws = await withWorkspace(pool, workspaceId, (tx) =>
+        tx.query(
+          `SELECT w.id, w.name, w.region, w.plan_id, p.limits
+           FROM workspaces w JOIN plans p ON p.id = w.plan_id WHERE w.id = $1`,
+          [workspaceId],
+        ),
+      );
+      json(res, 200, { workspace: ws.rows[0] });
     },
 
     "POST /auth/request-link": async (req, res) => {

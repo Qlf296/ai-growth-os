@@ -9,5 +9,5 @@ export { ConnectionRepository } from "./repositories/connections.js";
 export type { Connection } from "./repositories/connections.js";
 export { listEnabledSystemJobs } from "./repositories/scheduled-jobs.js";
 export type { ScheduledJobRow } from "./repositories/scheduled-jobs.js";
-export { provisionOnSignIn, isMember } from "./provisioning.js";
+export { provisionOnSignIn, isMember, listUserWorkspaces } from "./provisioning.js";
 export type { ProvisionedIdentity } from "./provisioning.js";
