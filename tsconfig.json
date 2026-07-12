@@ -42,6 +42,9 @@
     },
     {
       "path": "packages/action"
+    },
+    {
+      "path": "packages/automation"
     }
   ]
 }
