@@ -28,3 +28,6 @@ export { newTrace, continueTrace, childSpan, traceFields } from "./observability
 export type { TraceContext } from "./observability/tracing.js";
 export { collectDiagnostics, AuditAggregator } from "./observability/diagnostics.js";
 export type { DiagnosticsReport, DiagnosticsInputs, AuditEvent, AuditCount } from "./observability/diagnostics.js";
+export { validateDeployment, renderDeploymentReport } from "./deployment.js";
+export type { DeploymentReport, DeploymentCheck, DeploymentInputs, MigrationDescriptor } from "./deployment.js";
+export { scanMigrations } from "./deployment-scan.js";
