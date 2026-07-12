@@ -264,3 +264,22 @@ export function connectionsPage(email: string, workspaceId: string, conns: Conne
     </div>`).join("");
   return appPage("/connections", "Connections", email, rows);
 }
+
+export interface NotificationEntry { category: string; title: string; at: string; }
+
+/** Notification Center (STEP 6.6) — categories from Delivery's model; history when persisted. */
+export function notificationsPage(email: string, entries: NotificationEntry[]): string {
+  const categories = ["Digests", "Alerts", "Warnings", "Failures"];
+  const byCat = (cat: string): NotificationEntry[] => entries.filter((e) => e.category === cat);
+  const section = (cat: string): string => {
+    const rows = byCat(cat);
+    const body = rows.length === 0
+      ? `<p class="muted">No ${cat.toLowerCase()} yet.</p>`
+      : rows.map((e) => `<p>${esc(e.at.slice(0, 19))} — ${esc(e.title)}</p>`).join("");
+    return `<h2 style="font-size:15px;margin:16px 0 4px">${esc(cat)}</h2>${body}`;
+  };
+  const intro = entries.length === 0
+    ? `<p class="muted">No notifications yet. Digests and alerts appear here once Delivery sends them.</p>`
+    : "";
+  return appPage("/notifications", "Notifications", email, `${intro}${categories.map(section).join("")}`);
+}
