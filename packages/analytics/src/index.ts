@@ -3,3 +3,5 @@ export { recordOutcome, verdictFor } from "./outcomes.js";
 export { gradeOutcome, LEARNING_WEIGHT } from "./grade.js";
 export type { Attribution, Grade } from "./grade.js";
 export type { MeasureInput, OutcomeRecord, SubjectType, Verdict } from "./outcomes.js";
+export { propagateLearning } from "./propagator.js";
+export type { DetectorLearning, PropagateOptions } from "./propagator.js";
