@@ -95,33 +95,6 @@ const SECTIONS: Record<string, { title: string; empty: string }> = {
   "/learnings": { title: "Learnings", empty: "Nothing learned yet — learnings appear as actions complete and outcomes are measured." },
 };
 
-export interface ExperimentRow {
-  id: string;
-  hypothesis: string;
-  expectedImpact: string;
-  confidence: string;
-  metrics: string;
-  recommendationSource: string;
-}
-
-/** Experiments page (STEP 6.4) — read-only, grouped by state. Empty until the Experiment Engine runs. */
-export function experimentsPage(email: string, groups: { running: ExperimentRow[]; completed: ExperimentRow[]; archived: ExperimentRow[] }): string {
-  const section = (label: string, rows: ExperimentRow[]): string => {
-    const body = rows.length === 0
-      ? `<p class="muted">No ${label.toLowerCase()} experiments.</p>`
-      : rows.map((e) => `<div style="padding:12px;border:1px solid #e5e5e5;border-radius:8px;background:#fff;margin-bottom:8px">
-          <strong>${esc(e.hypothesis)}</strong>
-          <p class="muted">expected impact ${esc(e.expectedImpact)} · confidence ${esc(e.confidence)}</p>
-          <p class="muted">metrics: ${esc(e.metrics)} · source: ${esc(e.recommendationSource)}</p></div>`).join("");
-    return `<h2 style="font-size:15px;margin:16px 0 4px">${esc(label)}</h2>${body}`;
-  };
-  const total = groups.running.length + groups.completed.length + groups.archived.length;
-  const intro = total === 0
-    ? `<p class="muted">No experiments yet — experiments appear when you accept a recommendation and start measuring its outcome.</p>`
-    : "";
-  return appPage("/experiments", "Experiments", email,
-    `${intro}${section("Running", groups.running)}${section("Completed", groups.completed)}${section("Archived", groups.archived)}`);
-}
 
 export interface SettingsContext {
   readonly email: string;
@@ -328,4 +301,37 @@ export function usagePage(email: string, u: import("@aigos/action").UsageSummary
     <table style="width:100%;font-size:14px"><tr><th align=left>Month</th><th align=left>Requests</th><th align=left>Cost</th></tr>${monthly || '<tr><td class="muted">none</td></tr>'}</table>
     <h2 style="font-size:15px;margin:16px 0 4px">Recent history</h2>
     <table style="width:100%;font-size:13px"><tr><th align=left>Feature</th><th align=left>Model</th><th align=left>Tokens</th><th align=left>Cost</th><th align=left>Cache</th><th align=left>When</th></tr>${history || '<tr><td class="muted">none</td></tr>'}</table>`);
+}
+
+/** Automation dashboard (STEP 7.6) — rules + execution history/timeline. */
+export function automationsPage(email: string, rules: import("@aigos/automation").RuleView[], executions: import("@aigos/automation").ExecutionView[]): string {
+  const ruleRows = rules.length
+    ? rules.map((r) => `<tr><td>${esc(r.name)}</td><td class="muted">${esc(r.triggerType)} → ${esc(r.action)}</td><td>${esc(r.ladderLevel)}</td><td>${r.enabled ? "enabled" : "disabled"}</td></tr>`).join("")
+    : `<tr><td class="muted">No automation rules. Create one to auto-validate or auto-accept opportunities.</td></tr>`;
+  const history = executions.length
+    ? executions.map((e) => `<li>${esc(e.executedAt.slice(0, 19))} — <strong>${esc(e.ruleName)}</strong> · ${esc(e.status)} <span class="muted">(${esc(e.triggerRef)})</span></li>`).join("")
+    : `<li class="muted">No executions yet.</li>`;
+  return appPage("/automations", "Automations", email, `
+    <h2 style="font-size:15px;margin:8px 0 4px">Rules</h2>
+    <table style="width:100%;font-size:14px"><tr><th align=left>Name</th><th align=left>Trigger → action</th><th align=left>Ladder</th><th align=left>State</th></tr>${ruleRows}</table>
+    <h2 style="font-size:15px;margin:16px 0 4px">Execution history (timeline)</h2>
+    <ul style="font-size:13px">${history}</ul>`);
+}
+
+/** Real experiments page (STEP 7.6) — grouped by state with variants/metrics/winner. */
+export function experimentsDataPage(email: string, experiments: import("@aigos/automation").ExperimentView[]): string {
+  const groups: Record<string, import("@aigos/automation").ExperimentView[]> = { running: [], completed: [], archived: [] };
+  for (const e of experiments) (groups[e.status] ??= []).push(e);
+  const card = (e: import("@aigos/automation").ExperimentView): string => `
+    <div style="padding:12px;border:1px solid #e5e5e5;border-radius:8px;background:#fff;margin-bottom:8px">
+      <strong>${esc(e.hypothesis)}</strong>
+      <p class="muted">expected ${esc(e.expectedImpact)} · confidence ${esc(e.confidence)} · metric ${esc(e.metric)}${e.winnerLabel ? ` · winner ${esc(e.winnerLabel)}` : ""}</p>
+      <p class="muted">${e.variants.map((v) => `${esc(v.label)}: ${v.mean.toFixed(4)} (n=${v.samples})`).join(" · ")}</p>
+    </div>`;
+  const section = (label: string, key: string): string => {
+    const rows = groups[key] ?? [];
+    return `<h2 style="font-size:15px;margin:16px 0 4px">${esc(label)}</h2>${rows.length ? rows.map(card).join("") : `<p class="muted">No ${label.toLowerCase()} experiments.</p>`}`;
+  };
+  const intro = experiments.length === 0 ? `<p class="muted">No experiments yet — experiments appear when you accept a recommendation and start measuring its outcome.</p>` : "";
+  return appPage("/experiments", "Experiments", email, `${intro}${section("Running", "running")}${section("Completed", "completed")}${section("Archived", "archived")}`);
 }

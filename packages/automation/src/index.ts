@@ -11,3 +11,5 @@ export { loadEnabledRules, runAutomationForEvent } from "./run.js";
 export type { AutomationRunResult } from "./run.js";
 export { validateOpportunityAction, acceptOpportunityAction, buildDefaultActionRegistry } from "./actions.js";
 export { emitOpportunityEvent } from "./hooks.js";
+export { listRules, listExecutions, listExperiments } from "./views.js";
+export type { RuleView, ExecutionView, ExperimentView } from "./views.js";

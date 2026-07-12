@@ -9,10 +9,11 @@ import { ConnectionRepository, getSyncState, listUserWorkspaces, withWorkspace }
 
 import { buildDigest, listDrafts, usageSummary } from "@aigos/action";
 import { getOpportunityDetail } from "@aigos/growth";
+import { listExecutions, listExperiments, listRules } from "@aigos/automation";
 
 import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 
-import { actionsPage, adminPage, confirmPage, connectionsPage, experimentsPage, loginPage, notificationsPage, opportunityPage, sectionPage, settingsPage, todayPage, usagePage, SECTION_PATHS } from "./pages.js";
+import { actionsPage, adminPage, automationsPage, confirmPage, connectionsPage, experimentsDataPage, loginPage, notificationsPage, opportunityPage, sectionPage, settingsPage, todayPage, usagePage, SECTION_PATHS } from "./pages.js";
 
 const html = (res: ServerResponse, status: number, body: string): void => {
   // Per-user SSR: never store in shared caches (correctness + performance hygiene).
@@ -139,8 +140,16 @@ export function createWebServer(deps: WebDeps = {}): Server {
       if (method === "GET" && path === "/experiments") {
         const user = await currentUser(req);
         if (!user) return redirect(res, "/login");
-        // Read-only, grouped by state. No experiment model yet → honest empty groups (no fake data).
-        return html(res, 200, experimentsPage(user.email, { running: [], completed: [], archived: [] }));
+        const pool = deps.pool!;
+        const first = (await listUserWorkspaces(pool, user.id))[0]!;
+        return html(res, 200, experimentsDataPage(user.email, await listExperiments(pool, first.id)));
+      }
+      if (method === "GET" && path === "/automations") {
+        const user = await currentUser(req);
+        if (!user) return redirect(res, "/login");
+        const pool = deps.pool!;
+        const first = (await listUserWorkspaces(pool, user.id))[0]!;
+        return html(res, 200, automationsPage(user.email, await listRules(pool, first.id), await listExecutions(pool, first.id)));
       }
       if (method === "GET" && path === "/actions") {
         const user = await currentUser(req);
