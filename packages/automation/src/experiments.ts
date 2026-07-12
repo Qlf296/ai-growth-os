@@ -102,3 +102,58 @@ export async function transitionExperiment(pool: pg.Pool, workspaceId: string, e
     );
   });
 }
+
+export interface EvaluationResult {
+  experimentId: string;
+  winnerVariantId: string;
+  winnerLabel: string;
+  outcome: "promotion" | "rollback";  // treatment wins → promotion; control wins/tie → rollback
+  means: { variantId: string; label: string; mean: number; samples: number }[];
+}
+
+/**
+ * Deterministic experiment evaluation (STEP 7.5). Winner = variant with the
+ * highest mean of the experiment's metric; ties resolve to 'control' (or the
+ * lexicographically-first label) — the conservative rollback. Transitions the
+ * experiment to 'completed' recording the winner. Reproducible over stored rows.
+ */
+export async function evaluateExperiment(pool: pg.Pool, workspaceId: string, experimentId: string): Promise<EvaluationResult> {
+  return withWorkspace(pool, workspaceId, async (tx) => {
+    const exp = await tx.query(`SELECT metric, status FROM experiments WHERE id = $1`, [experimentId]);
+    if (!exp.rowCount) throw new Error(`experiment not found: ${experimentId}`);
+    const metric = (exp.rows[0] as { metric: string }).metric;
+
+    const rows = await tx.query(
+      `SELECT v.id, v.label, coalesce(avg(m.value), 0)::float AS mean, count(m.id)::int AS samples
+       FROM experiment_variants v
+       LEFT JOIN experiment_metrics m ON m.variant_id = v.id AND m.metric = $2
+       WHERE v.experiment_id = $1
+       GROUP BY v.id, v.label
+       ORDER BY v.label`,
+      [experimentId, metric],
+    );
+    const means = (rows.rows as Array<Record<string, unknown>>).map((r) => ({
+      variantId: r.id as string, label: r.label as string, mean: Number(r.mean), samples: r.samples as number,
+    }));
+    if (means.length === 0) throw new Error(`experiment ${experimentId} has no variants`);
+
+    // Deterministic winner: max mean; tie → lexicographically-first label (control-biased, conservative).
+    let winner = means[0]!;
+    for (const m of means) {
+      if (m.mean > winner.mean || (m.mean === winner.mean && m.label < winner.label)) winner = m;
+    }
+    const outcome: EvaluationResult["outcome"] = winner.label === "control" ? "rollback" : "promotion";
+    // Also treat a tie won by control as rollback (covered above).
+
+    await tx.query(
+      `UPDATE experiments SET status = 'completed', winner_variant_id = $2, decided_at = now() WHERE id = $1 AND status = 'running'`,
+      [experimentId, winner.variantId],
+    );
+    await tx.query(
+      `INSERT INTO audit_log (workspace_id, actor, event, details) VALUES ($1, 'experiment', 'experiment.evaluated', $2::jsonb)`,
+      [workspaceId, JSON.stringify({ experimentId, winnerVariantId: winner.variantId, winnerLabel: winner.label, outcome, means })],
+    );
+
+    return { experimentId, winnerVariantId: winner.variantId, winnerLabel: winner.label, outcome, means };
+  });
+}
