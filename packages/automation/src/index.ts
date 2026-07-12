@@ -7,3 +7,5 @@ export { evaluateRules } from "./engine.js";
 export type { EvaluateOptions, ExecutionRecord } from "./engine.js";
 export { createExperiment, assignVariant, recordMetric, transitionExperiment } from "./experiments.js";
 export type { CreateExperimentInput, Experiment, ExperimentStatus } from "./experiments.js";
+export { loadEnabledRules, runAutomationForEvent } from "./run.js";
+export type { AutomationRunResult } from "./run.js";

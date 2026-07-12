@@ -12,3 +12,5 @@ export { createDetectionHandler } from "./detection.js";
 export type { DetectionDeps, DetectionJobPayload } from "./detection.js";
 export { createGrowthHandler } from "./growth.js";
 export type { GrowthDeps, GrowthJobPayload } from "./growth.js";
+export { createAutomationHandler } from "./automation.js";
+export type { AutomationDeps, AutomationJobPayload } from "./automation.js";
