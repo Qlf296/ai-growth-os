@@ -54,12 +54,20 @@ const makeDeps = (over: { transport?: GscTransport; globalPerMinute?: number } =
   };
 };
 
-const payload = (): IngestionJobPayload => ({
+const payload = (conn = connectionId): IngestionJobPayload => ({
   family: "gsc.ingest.daily",
   workspaceId: null,
   scheduledFor: "2026-07-12T06:00:00.000Z",
-  params: { workspaceId: WS, connectionId, siteUrl: "sc-domain:forgcv.com" },
+  params: { workspaceId: WS, connectionId: conn, siteUrl: "sc-domain:forgcv.com" },
 });
+
+/** A connection with no sync watermark yet — a first run always performs work. */
+const freshConnection = (): Promise<string> =>
+  withWorkspace(h.app, WS, (tx) =>
+    new ConnectionRepository().create(tx, {
+      provider: "gsc", scopes: [], capabilities: { read_search_analytics: true }, authorizedBy: USER,
+    }),
+  );
 
 beforeAll(async () => {
   h = await startHarness();
@@ -115,9 +123,10 @@ describe("scheduler → queue → worker (end to end, fixtures only)", () => {
         return new FixtureGscTransport(FIXTURES).querySearchAnalytics(req);
       },
     };
+    const conn = await freshConnection();
     const q = new InMemoryJobQueue<SchedulerPayload>();
     q.process(createGscIngestionHandler(deps));
-    await q.enqueue({ jobId: "w1", payload: payload() });
+    await q.enqueue({ jobId: "w1", payload: payload(conn) });
     await q.drain();
     expect(captured).toEqual(["2026-07-10..2026-07-10"]); // scheduledFor 07-12 minus lag 2
   });
@@ -151,9 +160,10 @@ describe("idempotent execution", () => {
 describe("quota citizenship (ADR-021 §2)", () => {
   it("an exhausted global bucket denies with kind quota, retries then dead-letters; denial is metered", async () => {
     const { deps, metrics } = makeDeps({ globalPerMinute: 0 });
+    const conn = await freshConnection();
     const q = new InMemoryJobQueue<SchedulerPayload>({ attempts: 2, backoffMs: 0 });
     q.process(createGscIngestionHandler(deps));
-    await q.enqueue({ jobId: "starved", payload: payload() });
+    await q.enqueue({ jobId: "starved", payload: payload(conn) });
     await q.drain();
     expect(q.deadLetters).toHaveLength(1);
     expect(q.deadLetters[0]?.error).toMatch(/quota/i);
@@ -181,9 +191,10 @@ describe("failure honesty in the pipeline", () => {
         },
       },
     });
+    const conn = await freshConnection();
     const q = new InMemoryJobQueue<SchedulerPayload>({ attempts: 3, backoffMs: 0 });
     q.process(createGscIngestionHandler(deps));
-    await q.enqueue({ jobId: "flaky-provider", payload: payload() });
+    await q.enqueue({ jobId: "flaky-provider", payload: payload(conn) });
     await q.drain();
     expect(q.deadLetters).toHaveLength(1);
     expect(q.deadLetters[0]?.attempts).toBe(3);

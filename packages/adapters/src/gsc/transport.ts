@@ -11,6 +11,8 @@ export interface GscSearchAnalyticsRequest {
   readonly startDate: string; // YYYY-MM-DD
   readonly endDate: string;
   readonly dimensions: readonly ["date", "query", "page"];
+  readonly rowLimit?: number;
+  readonly startRow?: number;
 }
 
 export interface GscTransport {
@@ -31,7 +33,9 @@ export class FixtureGscTransport implements GscTransport {
     return this.fixture("sites.list.json");
   }
 
-  querySearchAnalytics(_request: GscSearchAnalyticsRequest): Promise<unknown> {
+  querySearchAnalytics(request: GscSearchAnalyticsRequest): Promise<unknown> {
+    // Fixture is a single page: offset requests return no rows, terminating pagination.
+    if ((request.startRow ?? 0) > 0) return Promise.resolve({ rows: [] });
     return this.fixture("search-analytics.daily.json");
   }
 }
@@ -64,7 +68,7 @@ export class HttpGscTransport implements GscTransport {
   querySearchAnalytics(request: GscSearchAnalyticsRequest): Promise<unknown> {
     return this.call(
       `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(request.siteUrl)}/searchAnalytics/query`,
-      { method: "POST", body: JSON.stringify({ startDate: request.startDate, endDate: request.endDate, dimensions: request.dimensions }) },
+      { method: "POST", body: JSON.stringify({ startDate: request.startDate, endDate: request.endDate, dimensions: request.dimensions, rowLimit: request.rowLimit, startRow: request.startRow }) },
     );
   }
 }

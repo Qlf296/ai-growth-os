@@ -33,6 +33,26 @@ export async function listEnabledSystemJobs(pool: pg.Pool): Promise<ScheduledJob
 }
 
 /**
+ * Record a run against a workspace job (schedules-as-data metadata): the next
+ * synchronization is thereby "scheduled" through the existing scheduler row.
+ */
+export async function recordJobRun(
+  pool: pg.Pool,
+  workspaceId: string,
+  jobFamily: string,
+  status: string,
+  nextRunAt: Date,
+): Promise<void> {
+  await withWorkspace(pool, workspaceId, (tx) =>
+    tx.query(
+      `UPDATE scheduled_jobs SET last_run_at = now(), last_status = $3, next_run_at = $4
+       WHERE workspace_id = $1 AND job_family = $2`,
+      [workspaceId, jobFamily, status, nextRunAt],
+    ),
+  );
+}
+
+/**
  * Persist an enabled workspace-scoped recurring job (schedules-as-data,
  * ADR-003). Idempotent per (workspace, job_family, params): connecting the
  * same site twice does not create a duplicate schedule.
