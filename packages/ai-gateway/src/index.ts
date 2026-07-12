@@ -15,3 +15,5 @@ export type {
   ModelProvider,
   ModelTier,
 } from "./types.js";
+export { ProviderRegistry, CostAccountant, AllProvidersFailedError } from "./registry.js";
+export type { ProviderEntry, ProviderAudit, ProviderOutcome, ProviderCost, ComposeOptions } from "./registry.js";
