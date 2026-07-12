@@ -9,3 +9,5 @@ export { createExperiment, assignVariant, recordMetric, transitionExperiment } f
 export type { CreateExperimentInput, Experiment, ExperimentStatus } from "./experiments.js";
 export { loadEnabledRules, runAutomationForEvent } from "./run.js";
 export type { AutomationRunResult } from "./run.js";
+export { validateOpportunityAction, acceptOpportunityAction, buildDefaultActionRegistry } from "./actions.js";
+export { emitOpportunityEvent } from "./hooks.js";
