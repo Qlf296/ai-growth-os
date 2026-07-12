@@ -1,0 +1,7 @@
+{
+  "siteEntry": [
+    { "siteUrl": "sc-domain:forgcv.com", "permissionLevel": "siteOwner" },
+    { "siteUrl": "https://blog.forgcv.com/", "permissionLevel": "siteFullUser" },
+    { "siteUrl": "https://not-mine.example/", "permissionLevel": "siteUnverifiedUser" }
+  ]
+}

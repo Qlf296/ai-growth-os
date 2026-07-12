@@ -19,6 +19,21 @@ export interface GscRow {
   readonly position: number;
 }
 
+export interface GscSite {
+  readonly siteUrl: string;
+  readonly permissionLevel: string;
+}
+
+/** Verified properties only — a user cannot connect a property they don't own/manage. */
+export function validateSitesResponse(payload: unknown): GscSite[] {
+  if (typeof payload !== "object" || payload === null) throw new Error("GSC sites validation failed: not an object");
+  const entries = (payload as { siteEntry?: unknown }).siteEntry;
+  if (!Array.isArray(entries)) return [];
+  return (entries as { siteUrl?: unknown; permissionLevel?: unknown }[])
+    .filter((e) => typeof e.siteUrl === "string" && typeof e.permissionLevel === "string" && e.permissionLevel !== "siteUnverifiedUser")
+    .map((e) => ({ siteUrl: e.siteUrl as string, permissionLevel: e.permissionLevel as string }));
+}
+
 export function validateGscResponse(payload: unknown): GscRow[] {
   const fail = (why: string): never => {
     throw new Error(`GSC response validation failed: ${why}`);

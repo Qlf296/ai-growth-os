@@ -12,6 +12,8 @@ export interface Connection {
   scopes: string[];
   capabilities: Record<string, unknown>;
   authorizedBy: string;
+  /** Selected provider property (e.g. GSC site URL). Null until chosen. */
+  externalAccountRef: string | null;
   createdAt: Date;
 }
 
@@ -36,7 +38,7 @@ export class ConnectionRepository {
 
   async list(tx: Tx): Promise<Connection[]> {
     const r = await tx.query(
-      `SELECT id, provider, status, scopes, capabilities, authorized_by, created_at
+      `SELECT id, provider, status, scopes, capabilities, authorized_by, external_account_ref, created_at
        FROM connections ORDER BY created_at`,
     );
     return r.rows.map((row: Record<string, unknown>) => ({
@@ -46,12 +48,24 @@ export class ConnectionRepository {
       scopes: row.scopes as string[],
       capabilities: row.capabilities as Record<string, unknown>,
       authorizedBy: row.authorized_by as string,
+      externalAccountRef: (row.external_account_ref as string | null) ?? null,
       createdAt: row.created_at as Date,
     }));
   }
 
+  async get(tx: Tx, id: string): Promise<Connection | null> {
+    const list = await this.list(tx);
+    return list.find((c) => c.id === id) ?? null;
+  }
+
   async setStatus(tx: Tx, id: string, status: Connection["status"]): Promise<boolean> {
     const r = await tx.query(`UPDATE connections SET status = $2 WHERE id = $1`, [id, status]);
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  /** Persist the selected provider property (e.g. GSC site URL). */
+  async setSite(tx: Tx, id: string, siteUrl: string): Promise<boolean> {
+    const r = await tx.query(`UPDATE connections SET external_account_ref = $2 WHERE id = $1`, [id, siteUrl]);
     return (r.rowCount ?? 0) > 0;
   }
 }

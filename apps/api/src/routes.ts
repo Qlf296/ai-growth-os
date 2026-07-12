@@ -12,9 +12,12 @@ import {
   signOAuthState,
   verifyOAuthState,
   classifyError,
+  refreshConnectionToken,
+  validateSitesResponse,
   GSC_CAPABILITIES,
   GSC_OAUTH_SCOPES,
   type GoogleTokenEndpoint,
+  type GscTransport,
 } from "@aigos/adapters";
 import {
   ConnectionRepository,
@@ -36,6 +39,8 @@ export interface GoogleOAuthDeps {
   readonly stateHmacKey: string;
   readonly endpoint: GoogleTokenEndpoint;
   readonly vault: TokenVault;
+  /** Builds an authenticated GSC transport from a fresh access token (HttpGscTransport in prod). */
+  readonly gscTransport?: (accessToken: string) => GscTransport;
 }
 
 export interface ApiDeps {
@@ -219,6 +224,61 @@ export function buildApiRoutes(deps: ApiDeps = {}): Record<string, Handler> {
       }
       // I8: id/provider/status only — never token material, never scopes echoing secrets
       json(res, 200, { connection: { id: connectionId, provider: "gsc", status: "active" }, scheduledIngestion });
+    },
+
+    "GET /connections/google/sites": async (req, res) => {
+      const { pool } = auth();
+      const oauth = deps.googleOAuth;
+      if (!oauth || !oauth.gscTransport) return json(res, 404, { error: "not_found" });
+      const session = await currentSession(req);
+      if (!session) return json(res, 401, { error: "unauthenticated" });
+      const url = new URL(req.url ?? "/", "http://local");
+      const workspaceId = url.searchParams.get("workspaceId") ?? "";
+      const connectionId = url.searchParams.get("connectionId") ?? "";
+      if (!/^[0-9a-f-]{36}$/.test(workspaceId) || !/^[0-9a-f-]{36}$/.test(connectionId) || !(await isMember(pool, session.userId, workspaceId))) {
+        return json(res, 403, { error: "not_a_member" });
+      }
+      try {
+        const accessToken = await refreshConnectionToken({
+          pool, vault: oauth.vault, endpoint: oauth.endpoint, workspaceId, connectionId, clock: () => new Date(),
+        });
+        const sites = validateSitesResponse(await oauth.gscTransport(accessToken).listSites());
+        json(res, 200, { sites });
+      } catch (error) {
+        const kind = classifyError(error).kind;
+        json(res, kind === "auth" ? 401 : 502, { error: kind === "auth" ? "provider_auth_failed" : "provider_unavailable" });
+      }
+    },
+
+    "POST /connections/google/site": async (req, res) => {
+      if (!csrfOk(req)) return json(res, 403, { error: "csrf" });
+      const { pool } = auth();
+      const session = await currentSession(req);
+      if (!session) return json(res, 401, { error: "unauthenticated" });
+      const body = await readJson(req);
+      const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : "";
+      const connectionId = typeof body.connectionId === "string" ? body.connectionId : "";
+      const siteUrl = typeof body.siteUrl === "string" ? body.siteUrl.trim() : "";
+      if (!/^[0-9a-f-]{36}$/.test(workspaceId) || !/^[0-9a-f-]{36}$/.test(connectionId) || !siteUrl) {
+        return json(res, 400, { error: "invalid_request" });
+      }
+      if (!(await isMember(pool, session.userId, workspaceId))) return json(res, 403, { error: "not_a_member" });
+      const persisted = await withWorkspace(pool, workspaceId, async (tx) => {
+        const ok = await new ConnectionRepository().setSite(tx, connectionId, siteUrl);
+        if (ok) {
+          await tx.query(
+            `INSERT INTO audit_log (workspace_id, actor, event, details) VALUES ($1, $2, 'connection.site_selected', $3::jsonb)`,
+            [workspaceId, session.userId, JSON.stringify({ connectionId, siteUrl })],
+          );
+        }
+        return ok;
+      });
+      if (!persisted) return json(res, 404, { error: "not_found" });
+      await scheduleWorkspaceJob(pool, {
+        workspaceId, jobFamily: "gsc.ingest.daily", schedule: "0 6 * * *",
+        params: { workspaceId, connectionId, siteUrl },
+      });
+      json(res, 200, { scheduled: true });
     },
 
     "POST /auth/request-link": async (req, res) => {
