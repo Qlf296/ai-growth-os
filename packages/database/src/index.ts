@@ -20,3 +20,5 @@ export type { SyncState, SyncStateUpdate } from "./repositories/sync-state.js";
 export { updateConnectionHealth } from "./repositories/connection-health.js";
 export type { HealthTransition } from "./repositories/connection-health.js";
 export type { ConnectionHealth } from "./repositories/connections.js";
+export { snapshotBaseline, getBaseline, baselineHash } from "./repositories/baselines.js";
+export type { Baseline, BaselineInput } from "./repositories/baselines.js";
