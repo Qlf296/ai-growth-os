@@ -28,6 +28,9 @@
     },
     {
       "path": "../../packages/automation"
+    },
+    {
+      "path": "../../packages/analytics"
     }
   ]
 }

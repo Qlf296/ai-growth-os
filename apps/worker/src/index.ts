@@ -14,3 +14,5 @@ export { createGrowthHandler } from "./growth.js";
 export type { GrowthDeps, GrowthJobPayload } from "./growth.js";
 export { createAutomationHandler } from "./automation.js";
 export type { AutomationDeps, AutomationJobPayload } from "./automation.js";
+export { createOutcomesHandler, pendingEvaluations } from "./outcomes.js";
+export type { OutcomesDeps, OutcomesJobPayload } from "./outcomes.js";

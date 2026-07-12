@@ -12,6 +12,7 @@
     "@aigos/config-registry": "0.1.0",
     "@aigos/intelligence": "0.1.0",
     "@aigos/growth": "0.1.0",
-    "@aigos/automation": "0.1.0"
+    "@aigos/automation": "0.1.0",
+    "@aigos/analytics": "0.1.0"
   }
 }
