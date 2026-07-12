@@ -8,6 +8,8 @@ import { createHash } from "node:crypto";
 
 import { withWorkspace } from "@aigos/database";
 import { makeEvidence } from "@aigos/intelligence";
+
+import { gradeOutcome, type Attribution, type Grade } from "./grade.js";
 import type pg from "pg";
 
 export type SubjectType = "opportunity" | "experiment";
@@ -22,11 +24,14 @@ export interface MeasureInput {
   windowDays: number;
   /** Fraction improvement over baseline that counts as fully "met" (e.g. 0.1 = +10%). */
   targetImprovement: number;
+  /** Attribution context (ADR-033). Default: scoped GSC correlation, no UTM, no confounders. */
+  attribution?: Attribution;
 }
 
 export interface OutcomeRecord {
   id: string;
   verdict: Verdict;
+  grade: Grade;
   deltaPct: number | null;
   evidenceReferenceId: string;
 }
@@ -44,12 +49,14 @@ export function verdictFor(input: MeasureInput): { verdict: Verdict; deltaPct: n
 
 export async function recordOutcome(pool: pg.Pool, workspaceId: string, input: MeasureInput): Promise<OutcomeRecord> {
   const { verdict, deltaPct } = verdictFor(input);
+  const attribution: Attribution = input.attribution ?? { pageScoped: true, utmKeyed: false, confounders: 0 };
+  const grade = gradeOutcome(attribution, verdict);
   const evidence = makeEvidence({
     generatedBy: "analytics.outcome@1",
     data: {
       subjectType: input.subjectType, subjectId: input.subjectId, metric: input.metric,
       baseline: input.baselineValue, observed: input.observedValue, windowDays: input.windowDays,
-      targetImprovement: input.targetImprovement, deltaPct, verdict, unit: "measured", monetized: false,
+      targetImprovement: input.targetImprovement, deltaPct, verdict, grade, unit: "measured", monetized: false,
     },
   });
   const dedupeHash = createHash("sha256").update(`${input.subjectType}|${input.subjectId}|${input.metric}|${input.windowDays}`).digest("hex");
@@ -62,13 +69,13 @@ export async function recordOutcome(pool: pg.Pool, workspaceId: string, input: M
       [evidence.id, evidence.generatedBy, JSON.stringify(evidence.data)],
     );
     await tx.query(
-      `INSERT INTO outcome_evaluations (workspace_id, subject_type, subject_id, metric, baseline_value, observed_value, window_days, verdict, evidence_id, dedupe_hash)
-       VALUES (NULLIF(current_setting('app.workspace_id', true), '')::uuid, $1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO outcome_evaluations (workspace_id, subject_type, subject_id, metric, baseline_value, observed_value, window_days, verdict, grade, evidence_id, dedupe_hash)
+       VALUES (NULLIF(current_setting('app.workspace_id', true), '')::uuid, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (workspace_id, dedupe_hash) DO NOTHING`,
-      [input.subjectType, input.subjectId, input.metric, input.baselineValue, input.observedValue, input.windowDays, verdict, evidence.id, dedupeHash],
+      [input.subjectType, input.subjectId, input.metric, input.baselineValue, input.observedValue, input.windowDays, verdict, grade, evidence.id, dedupeHash],
     );
-    const row = await tx.query(`SELECT id, verdict, evidence_id FROM outcome_evaluations WHERE dedupe_hash = $1`, [dedupeHash]);
-    const r = row.rows[0] as { id: string | number; verdict: Verdict; evidence_id: string };
-    return { id: String(r.id), verdict: r.verdict, deltaPct, evidenceReferenceId: r.evidence_id };
+    const row = await tx.query(`SELECT id, verdict, grade, evidence_id FROM outcome_evaluations WHERE dedupe_hash = $1`, [dedupeHash]);
+    const r = row.rows[0] as { id: string | number; verdict: Verdict; grade: Grade; evidence_id: string };
+    return { id: String(r.id), verdict: r.verdict, grade: r.grade, deltaPct, evidenceReferenceId: r.evidence_id };
   });
 }
