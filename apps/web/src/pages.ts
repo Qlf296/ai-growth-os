@@ -307,3 +307,20 @@ export function adminPage(email: string, v: AdminView): string {
     <h2 style="font-size:15px;margin:16px 0 4px">Usage</h2>
     <p class="muted">${v.usage.requests} AI requests · ${v.usage.inputTokens}+${v.usage.outputTokens} tokens · €${esc(v.usage.costEur.toFixed(4))}</p>`);
 }
+
+/** AI Usage Dashboard (STEP 6.8) from the llm_calls ledger (CostMeter-persisted). */
+export function usagePage(email: string, u: import("@aigos/action").UsageSummary): string {
+  const providers = u.byProvider.map((p) => `<tr><td>${esc(p.provider)}</td><td>${p.requests}</td><td>€${esc(p.costEur.toFixed(4))}</td></tr>`).join("");
+  const monthly = u.monthly.map((m) => `<tr><td>${esc(m.month)}</td><td>${m.requests}</td><td>€${esc(m.costEur.toFixed(4))}</td></tr>`).join("");
+  const history = u.history.map((r) => `<tr><td>${esc(r.feature)}</td><td>${esc(r.provider)}/${esc(r.tier)}</td><td>${r.inputTokens}+${r.outputTokens}</td><td>€${esc(r.costEur.toFixed(4))}</td><td>${r.cached ? "cached" : "live"}</td><td class="muted">${esc(r.at.slice(0,19))}</td></tr>`).join("");
+  return appPage("/usage", "AI Usage", email, `
+    <div style="margin:8px 0;padding:12px 16px;background:#f5f5f5;border-radius:8px;font-size:14px">
+      <strong>Summary</strong> · ${u.requests} requests · ${u.inputTokens}+${u.outputTokens} tokens · €${esc(u.costEur.toFixed(4))} · ${u.cacheHits} cache hits · avg latency ${u.avgLatencyMs !== null ? Math.round(u.avgLatencyMs) + "ms" : "n/a"}
+    </div>
+    <h2 style="font-size:15px;margin:16px 0 4px">By provider</h2>
+    <table style="width:100%;font-size:14px"><tr><th align=left>Provider</th><th align=left>Requests</th><th align=left>Cost</th></tr>${providers || '<tr><td class="muted">none</td></tr>'}</table>
+    <h2 style="font-size:15px;margin:16px 0 4px">Monthly cost</h2>
+    <table style="width:100%;font-size:14px"><tr><th align=left>Month</th><th align=left>Requests</th><th align=left>Cost</th></tr>${monthly || '<tr><td class="muted">none</td></tr>'}</table>
+    <h2 style="font-size:15px;margin:16px 0 4px">Recent history</h2>
+    <table style="width:100%;font-size:13px"><tr><th align=left>Feature</th><th align=left>Model</th><th align=left>Tokens</th><th align=left>Cost</th><th align=left>Cache</th><th align=left>When</th></tr>${history || '<tr><td class="muted">none</td></tr>'}</table>`);
+}

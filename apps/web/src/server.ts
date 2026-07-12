@@ -7,12 +7,12 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 
 import { ConnectionRepository, getSyncState, listUserWorkspaces, withWorkspace } from "@aigos/database";
 
-import { buildDigest, listDrafts } from "@aigos/action";
+import { buildDigest, listDrafts, usageSummary } from "@aigos/action";
 import { getOpportunityDetail } from "@aigos/growth";
 
 import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 
-import { actionsPage, adminPage, confirmPage, connectionsPage, experimentsPage, loginPage, notificationsPage, opportunityPage, sectionPage, settingsPage, todayPage, SECTION_PATHS } from "./pages.js";
+import { actionsPage, adminPage, confirmPage, connectionsPage, experimentsPage, loginPage, notificationsPage, opportunityPage, sectionPage, settingsPage, todayPage, usagePage, SECTION_PATHS } from "./pages.js";
 
 const html = (res: ServerResponse, status: number, body: string): void => {
   res.writeHead(status, { "content-type": "text/html; charset=utf-8" });
@@ -82,6 +82,13 @@ export function createWebServer(deps: WebDeps = {}): Server {
         const detail = await getOpportunityDetail(pool, first.id, id);
         if (!detail) return json(res, 404, { error: "not_found" });
         return html(res, 200, opportunityPage(user.email, detail));
+      }
+      if (method === "GET" && path === "/usage") {
+        const user = await currentUser(req);
+        if (!user) return redirect(res, "/login");
+        const pool = deps.pool!;
+        const first = (await listUserWorkspaces(pool, user.id))[0]!;
+        return html(res, 200, usagePage(user.email, await usageSummary(pool, first.id)));
       }
       if (method === "GET" && path === "/admin") {
         const user = await currentUser(req);
