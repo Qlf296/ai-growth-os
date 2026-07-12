@@ -1,27 +1,71 @@
 import { appPage, esc, standalonePage } from "./layout.js";
 
+/** Minimal digest shape consumed by the dashboard (from @aigos/action buildDigest). */
+export interface DashboardDigest {
+  opportunities: number;
+  recommendations: number;
+  drafts: { draftType: string; status: string }[];
+  pendingApprovals: { draftType: string; status: string }[];
+  completed: number;
+  feed: {
+    total: number;
+    items: {
+      opportunityId: string;
+      entity: string;
+      severity: string;
+      impact: string;
+      effort: string;
+      priorityScore: number;
+      recommendation: { title: string; summary: string } | null;
+    }[];
+  };
+}
+
 export interface TodayContext {
   readonly email: string;
   readonly locale: string;
   readonly workspaceName: string;
   readonly planId: string;
   readonly date: Date;
+  readonly digest: DashboardDigest;
 }
 
 export function todayPage(ctx: TodayContext): string {
-  const dateLabel = new Intl.DateTimeFormat(ctx.locale, {
-    weekday: "long", day: "numeric", month: "long",
-  }).format(ctx.date);
-  return appPage(
-    "/",
-    "Today",
-    ctx.email,
-    `<p class="muted">${esc(dateLabel)} · ${esc(ctx.workspaceName)} · plan ${esc(ctx.planId)}</p>
-     <div style="margin-top:24px;padding:24px;border:1px dashed #ccc;border-radius:8px;background:#fff">
-       <p>No actions yet.</p>
-       <p class="muted">Your feed starts with your first data source — connect Google Search Console to generate your first personalized actions from your real search data.</p>
-     </div>`,
-  );
+  const dateLabel = new Intl.DateTimeFormat(ctx.locale, { weekday: "long", day: "numeric", month: "long" }).format(ctx.date);
+  const header = `<p class="muted">${esc(dateLabel)} · ${esc(ctx.workspaceName)} · plan ${esc(ctx.planId)}</p>`;
+
+  if (ctx.digest.feed.total === 0) {
+    return appPage("/", "Today", ctx.email,
+      `${header}
+       <div style="margin-top:24px;padding:24px;border:1px dashed #ccc;border-radius:8px;background:#fff">
+         <p>No actions yet.</p>
+         <p class="muted">Your feed starts with your first data source — connect Google Search Console to generate your first personalized actions from your real search data.</p>
+       </div>`);
+  }
+
+  const items = ctx.digest.feed.items
+    .map((it) => `
+      <div style="padding:16px;border:1px solid #e5e5e5;border-radius:8px;background:#fff;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;gap:8px">
+          <strong>${esc(it.recommendation?.title ?? it.entity)}</strong>
+          <span class="muted">priority ${esc(String(it.priorityScore))}</span>
+        </div>
+        <p class="muted" style="margin-top:4px">${esc(it.entity)}</p>
+        <p class="muted">severity ${esc(it.severity)} · impact ${esc(it.impact)} · effort ${esc(it.effort)}</p>
+        ${it.recommendation ? `<p style="margin-top:4px">${esc(it.recommendation.summary)}</p>` : ""}
+        <p><a href="/opportunities/${esc(it.opportunityId)}">Details &amp; evidence →</a></p>
+      </div>`)
+    .join("");
+
+  const d = ctx.digest;
+  const summary = `
+    <div style="margin:16px 0;padding:12px 16px;background:#f5f5f5;border-radius:8px;font-size:14px">
+      <strong>Daily summary</strong> ·
+      ${d.opportunities} opportunities · ${d.recommendations} recommendations ·
+      ${d.drafts.length} drafts (${d.pendingApprovals.length} pending) · ${d.completed} completed
+    </div>`;
+
+  return appPage("/", "Today", ctx.email, `${header}${summary}${items}`);
 }
 
 export const loginPage = (): string =>

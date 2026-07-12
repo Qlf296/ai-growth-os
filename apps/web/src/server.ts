@@ -7,6 +7,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 
 import { ConnectionRepository, listUserWorkspaces, withWorkspace } from "@aigos/database";
 
+import { buildDigest } from "@aigos/action";
+
 import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 
 import { confirmPage, loginPage, sectionPage, settingsPage, todayPage, SECTION_PATHS } from "./pages.js";
@@ -63,8 +65,10 @@ export function createWebServer(deps: WebDeps = {}): Server {
           tx.query(`SELECT name, plan_id FROM workspaces WHERE id = $1`, [first.id]),
         );
         const row = ws.rows[0] as { name: string; plan_id: string };
+        const day = clock().toISOString().slice(0, 10);
+        const digest = await buildDigest(pool, first.id, day); // real data from repositories only
         return html(res, 200, todayPage({
-          email: user.email, locale: user.locale, workspaceName: row.name, planId: row.plan_id, date: clock(),
+          email: user.email, locale: user.locale, workspaceName: row.name, planId: row.plan_id, date: clock(), digest,
         }));
       }
       if (method === "GET" && path === "/settings") {
