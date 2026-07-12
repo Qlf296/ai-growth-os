@@ -16,6 +16,15 @@ export interface DigestDraft {
   recommendationId: string;
 }
 
+/** Honest outcome report-back (STEP 9.5): measured units only — verdict, grade, evidence. Never ROI. */
+export interface ReportBack {
+  metric: string;
+  verdict: string;
+  grade: string | null;
+  evidenceReferenceId: string;
+  measuredAt: string;
+}
+
 export interface Digest {
   day: string;
   feed: Feed;
@@ -24,6 +33,7 @@ export interface Digest {
   drafts: DigestDraft[];
   pendingApprovals: DigestDraft[];
   completed: number;
+  reportBacks: ReportBack[];
 }
 
 export async function buildDigest(pool: pg.Pool, workspaceId: string, day: string): Promise<Digest> {
@@ -36,6 +46,14 @@ export async function buildDigest(pool: pg.Pool, workspaceId: string, day: strin
     const drafts: DigestDraft[] = (draftRows.rows as Array<Record<string, unknown>>).map((r) => ({
       id: r.id as string, draftType: r.draft_type as string, status: r.status as string, recommendationId: r.recommendation_id as string,
     }));
+    // Honest report-backs: measured outcomes with grade + mandatory evidence reference (I4). No ROI, no money.
+    const rb = await tx.query(
+      `SELECT metric, verdict, grade, evidence_id, evaluated_at FROM outcome_evaluations ORDER BY evaluated_at DESC LIMIT 10`,
+    );
+    const reportBacks: ReportBack[] = (rb.rows as Array<Record<string, unknown>>).map((r) => ({
+      metric: r.metric as string, verdict: r.verdict as string, grade: (r.grade as string | null) ?? null,
+      evidenceReferenceId: r.evidence_id as string, measuredAt: (r.evaluated_at as Date).toISOString(),
+    }));
     return {
       day,
       feed,
@@ -44,6 +62,7 @@ export async function buildDigest(pool: pg.Pool, workspaceId: string, day: strin
       drafts,
       pendingApprovals: drafts.filter((d) => d.status === "draft" || d.status === "reviewed"),
       completed: completed.rows[0].n,
+      reportBacks,
     };
   });
 }

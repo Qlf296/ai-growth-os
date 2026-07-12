@@ -7,6 +7,7 @@ export interface DashboardDigest {
   drafts: { draftType: string; status: string }[];
   pendingApprovals: { draftType: string; status: string }[];
   completed: number;
+  reportBacks: { metric: string; verdict: string; grade: string | null; evidenceReferenceId: string; measuredAt: string }[];
   feed: {
     total: number;
     items: {
@@ -57,6 +58,12 @@ export function todayPage(ctx: TodayContext): string {
       </div>`)
     .join("");
 
+  const reportBacks = ctx.digest.reportBacks.length
+    ? `<div style="margin:16px 0;padding:12px 16px;background:#eef7ee;border-radius:8px;font-size:14px">
+        <strong>Recent results</strong> (measured, not monetized) ·
+        ${ctx.digest.reportBacks.map((r) => `${esc(r.metric)}: ${esc(r.verdict)}${r.grade ? ` (grade ${esc(r.grade)})` : ""} · <code>${esc(r.evidenceReferenceId)}</code>`).join(" · ")}
+      </div>`
+    : "";
   const d = ctx.digest;
   const summary = `
     <div style="margin:16px 0;padding:12px 16px;background:#f5f5f5;border-radius:8px;font-size:14px">
@@ -65,7 +72,7 @@ export function todayPage(ctx: TodayContext): string {
       ${d.drafts.length} drafts (${d.pendingApprovals.length} pending) · ${d.completed} completed
     </div>`;
 
-  return appPage("/", "Today", ctx.email, `${header}${summary}${items}`);
+  return appPage("/", "Today", ctx.email, `${header}${summary}${reportBacks}${items}`);
 }
 
 export const loginPage = (): string =>
