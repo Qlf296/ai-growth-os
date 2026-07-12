@@ -33,6 +33,9 @@
     },
     {
       "path": "packages/identity"
+    },
+    {
+      "path": "packages/intelligence"
     }
   ]
 }

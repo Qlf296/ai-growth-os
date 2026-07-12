@@ -19,6 +19,9 @@
     },
     {
       "path": "../../packages/config-registry"
+    },
+    {
+      "path": "../../packages/intelligence"
     }
   ]
 }

@@ -1,0 +1,13 @@
+{
+  "name": "@aigos/intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@aigos/config-registry": "0.1.0",
+    "@aigos/database": "0.1.0",
+    "@aigos/infra": "0.1.0",
+    "pg": "^8.16.3"
+  }
+}

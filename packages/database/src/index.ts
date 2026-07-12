@@ -11,8 +11,8 @@ export { listEnabledSystemJobs, scheduleWorkspaceJob, recordJobRun } from "./rep
 export type { ScheduledJobRow } from "./repositories/scheduled-jobs.js";
 export { provisionOnSignIn, isMember, listUserWorkspaces } from "./provisioning.js";
 export type { ProvisionedIdentity } from "./provisioning.js";
-export { SignalRepository } from "./repositories/signals.js";
-export type { SignalDraft } from "./repositories/signals.js";
+export { SignalRepository, readSignalsByType } from "./repositories/signals.js";
+export type { SignalDraft, SignalRow } from "./repositories/signals.js";
 export { TokenVault } from "./vault.js";
 export type { StoredTokens, VaultKey } from "./vault.js";
 export { getSyncState, updateSyncState } from "./repositories/sync-state.js";

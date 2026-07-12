@@ -8,3 +8,5 @@ export type { JobDefinition, SchedulerPayload, TickWindow } from "./scheduler.js
 export { canaryHandler } from "./canary.js";
 export { createGscIngestionHandler, registerGscQuotaKeys } from "./ingestion.js";
 export type { IngestionDeps, IngestionJobPayload } from "./ingestion.js";
+export { createDetectionHandler } from "./detection.js";
+export type { DetectionDeps, DetectionJobPayload } from "./detection.js";

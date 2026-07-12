@@ -29,3 +29,29 @@ export class SignalRepository {
     return { inserted, duplicates: drafts.length - inserted };
   }
 }
+
+export interface SignalRow {
+  occurredAt: Date;
+  type: string;
+  data: Record<string, unknown>;
+}
+
+/** Read signals of a type within [from, to] for the CURRENT workspace scope (RLS). */
+export async function readSignalsByType(
+  tx: import("../tenancy.js").Tx,
+  type: string,
+  from: Date,
+  to: Date,
+): Promise<SignalRow[]> {
+  const r = await tx.query(
+    `SELECT occurred_at, type, data FROM signals
+     WHERE type = $1 AND occurred_at >= $2 AND occurred_at <= $3
+     ORDER BY occurred_at`,
+    [type, from, to],
+  );
+  return r.rows.map((row: Record<string, unknown>) => ({
+    occurredAt: row.occurred_at as Date,
+    type: row.type as string,
+    data: row.data as Record<string, unknown>,
+  }));
+}
