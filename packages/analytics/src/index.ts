@@ -7,3 +7,5 @@ export { propagateLearning } from "./propagator.js";
 export type { DetectorLearning, PropagateOptions } from "./propagator.js";
 export { analyticsSummary } from "./reports.js";
 export type { AnalyticsSummary, OutcomeReportRow, TrackRecordRow } from "./reports.js";
+export { evaluatePromotion, promoteKnowledge } from "./knowledge.js";
+export type { EpistemicLevel, PromotionCriteria, PromotionInput } from "./knowledge.js";
