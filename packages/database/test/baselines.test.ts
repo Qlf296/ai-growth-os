@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { baselineHash, getBaseline, snapshotBaseline } from "../src/baselines-index.js";
+import { baselineHash, getBaseline, snapshotBaseline } from "../src/index.js";
 import { withWorkspace } from "../src/tenancy.js";
 import { startHarness, seedWorkspace, type Harness } from "./harness.js";
 
