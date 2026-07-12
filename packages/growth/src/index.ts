@@ -14,3 +14,5 @@ export type { OpportunityDetail, EvidenceRow, TimelineEntry } from "./detail.js"
 export { buildGrowth } from "./engine.js";
 export type { GrowthBuildParams, GrowthBuildSummary } from "./engine.js";
 export * from "./mappings.js";
+export { registerArbitrationConfig, arbitrateV2, shadowEvaluateArbitration } from "./arbitration.js";
+export type { ArbitrationResult, ShadowItem, ShadowReport } from "./arbitration.js";
