@@ -1,4 +1,5 @@
 [
   "packages/database/src/config-store.ts",
+  "packages/database/src/provisioning.ts",
   "packages/database/src/repositories/scheduled-jobs.ts"
 ]

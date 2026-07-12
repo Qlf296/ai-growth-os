@@ -1,5 +1,5 @@
 /** Gates are code: tested like everything else (Category D, ARCHITECTURE_TESTS). */
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,11 +28,8 @@ describe("gate:migrations (ADR-043)", () => {
 });
 
 describe("gate:unscoped (S3 §11)", () => {
-  it("passes with the current allowlist", () => {
-    const allowlist = [
-      "packages/database/src/config-store.ts",
-      "packages/database/src/repositories/scheduled-jobs.ts",
-    ];
+  it("passes with the committed allowlist (single source of truth)", () => {
+    const allowlist = JSON.parse(readFileSync(join(root, ".unscoped-allowlist.json"), "utf8"));
     expect(checkUnscoped(root, allowlist)).toEqual([]);
   });
 
