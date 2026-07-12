@@ -78,7 +78,12 @@ export interface ConfigSnapshot {
 export interface ConfigStore {
   getOverride(key: string, workspaceId: string | null): Promise<unknown | undefined>;
   setOverride(record: ConfigChangeRecord): Promise<void>;
-  history(key: string): Promise<readonly ConfigChangeRecord[]>;
-  /** All (key, workspaceId) overrides — used by snapshot assembly. */
-  allOverrides(): Promise<readonly ConfigChangeRecord[]>;
+  /**
+   * Change log for a key. RLS-aligned visibility: global records always;
+   * workspace records only when `scope.workspaceId` is provided (tenant
+   * isolation holds even for config — I9).
+   */
+  history(key: string, scope?: ReadScope): Promise<readonly ConfigChangeRecord[]>;
+  /** All overrides visible in the given scope — used by snapshot assembly. */
+  allOverrides(scope?: ReadScope): Promise<readonly ConfigChangeRecord[]>;
 }

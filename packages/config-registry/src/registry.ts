@@ -115,9 +115,9 @@ export class ConfigRegistry {
     this.definitions.set(key, { ...def, stability: to });
   }
 
-  async history(key: string): Promise<readonly ConfigChangeRecord[]> {
+  async history(key: string, scope: ReadScope = {}): Promise<readonly ConfigChangeRecord[]> {
     this.describe(key); // unknown keys fail loudly
-    return this.store.history(key);
+    return this.store.history(key, scope);
   }
 
   /**

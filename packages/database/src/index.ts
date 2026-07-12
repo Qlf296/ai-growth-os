@@ -1,1 +1,9 @@
-export {}; // @aigos/database — empty skeleton (Phase 0, step 1)
+/** @aigos/database — Phase 0 step 3 (S3; I5/I8/I9; ADR-019/043/046). */
+export { withWorkspace, withWorkspaceOnClient, dangerouslyUnscoped } from "./tenancy.js";
+export type { Tx } from "./tenancy.js";
+export { applyMigrations, MIGRATIONS_DIR } from "./migrate.js";
+export { PgConfigStore } from "./config-store.js";
+export { MembershipRepository } from "./repositories/memberships.js";
+export type { Membership, MembershipRole } from "./repositories/memberships.js";
+export { ConnectionRepository } from "./repositories/connections.js";
+export type { Connection } from "./repositories/connections.js";

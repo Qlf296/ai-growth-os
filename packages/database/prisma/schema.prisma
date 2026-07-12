@@ -1,0 +1,116 @@
+// Prisma schema — mirror of the SQL migrations (single source of truth = SQL,
+// Prisma-standard layout; production applies them with `prisma migrate deploy`).
+// RLS, roles and grants live in migration SQL — Prisma does not model them.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Plan {
+  id         String      @id
+  limits     Json        @default("{}")
+  workspaces Workspace[]
+
+  @@map("plans")
+}
+
+model User {
+  id            String       @id @default(uuid()) @db.Uuid
+  email         String       @unique
+  authProvider  String       @map("auth_provider")
+  locale        String       @default("fr")
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt     DateTime?    @map("deleted_at") @db.Timestamptz
+  memberships   Membership[]
+  authorized    Connection[] @relation("authorized_by")
+
+  @@map("users")
+}
+
+model Workspace {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  region      String       @default("eu")
+  planId      String       @map("plan_id")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz
+  plan        Plan         @relation(fields: [planId], references: [id])
+  memberships Membership[]
+  connections Connection[]
+
+  @@map("workspaces")
+}
+
+model Membership {
+  workspaceId String    @map("workspace_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  role        String
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@id([workspaceId, userId])
+  @@map("memberships")
+}
+
+model Connection {
+  id                 String         @id @default(uuid()) @db.Uuid
+  workspaceId        String         @map("workspace_id") @db.Uuid
+  provider           String
+  status             String         @default("active")
+  scopes             String[]
+  externalAccountRef String?        @map("external_account_ref")
+  capabilities       Json           @default("{}")
+  authorizedBy       String         @map("authorized_by") @db.Uuid
+  healthCheckedAt    DateTime?      @map("health_checked_at") @db.Timestamptz
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  workspace          Workspace      @relation(fields: [workspaceId], references: [id])
+  authorizer         User           @relation("authorized_by", fields: [authorizedBy], references: [id])
+  token              ProviderToken?
+
+  @@index([workspaceId])
+  @@map("connections")
+}
+
+model ProviderToken {
+  connectionId    String     @id @map("connection_id") @db.Uuid
+  encAccessToken  Bytes      @map("enc_access_token")
+  encRefreshToken Bytes?     @map("enc_refresh_token")
+  keyId           String     @map("key_id")
+  expiresAt       DateTime?  @map("expires_at") @db.Timestamptz
+  rotatedAt       DateTime?  @map("rotated_at") @db.Timestamptz
+  connection      Connection @relation(fields: [connectionId], references: [id])
+
+  @@map("provider_tokens")
+}
+
+model ConfigOverride {
+  id            BigInt   @id @default(autoincrement())
+  key           String
+  value         Json
+  workspaceId   String?  @map("workspace_id") @db.Uuid
+  changedBy     String   @map("changed_by")
+  reason        String
+  shadowEvalRef String?  @map("shadow_eval_ref")
+  changedAt     DateTime @default(now()) @map("changed_at") @db.Timestamptz
+
+  @@index([key, workspaceId, id(sort: Desc)])
+  @@map("config_overrides")
+}
+
+model AuditLog {
+  id          BigInt   @id @default(autoincrement())
+  workspaceId String?  @map("workspace_id") @db.Uuid
+  actor       String
+  event       String
+  details     Json     @default("{}")
+  at          DateTime @default(now()) @db.Timestamptz
+
+  @@index([workspaceId, id(sort: Desc)])
+  @@map("audit_log")
+}

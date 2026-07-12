@@ -4,7 +4,11 @@
  * Append-only: overrides are stored as an ordered log; the current value of a
  * (key, workspaceId) pair is the last record for that pair. Nothing is deleted.
  */
-import type { ConfigChangeRecord, ConfigStore } from "./types.js";
+import type { ConfigChangeRecord, ConfigStore, ReadScope } from "./types.js";
+
+/** RLS-equivalent visibility: global rows always; ws rows only in ws scope. */
+const visibleIn = (record: ConfigChangeRecord, scope: ReadScope): boolean =>
+  record.workspaceId === null || record.workspaceId === (scope.workspaceId ?? null);
 
 export class InMemoryConfigStore implements ConfigStore {
   private readonly log: ConfigChangeRecord[] = [];
@@ -24,11 +28,13 @@ export class InMemoryConfigStore implements ConfigStore {
     return Promise.resolve();
   }
 
-  history(key: string): Promise<readonly ConfigChangeRecord[]> {
-    return Promise.resolve(Object.freeze(this.log.filter((r) => r.key === key)));
+  history(key: string, scope: ReadScope = {}): Promise<readonly ConfigChangeRecord[]> {
+    return Promise.resolve(
+      Object.freeze(this.log.filter((r) => r.key === key && visibleIn(r, scope))),
+    );
   }
 
-  allOverrides(): Promise<readonly ConfigChangeRecord[]> {
-    return Promise.resolve(Object.freeze([...this.log]));
+  allOverrides(scope: ReadScope = {}): Promise<readonly ConfigChangeRecord[]> {
+    return Promise.resolve(Object.freeze(this.log.filter((r) => visibleIn(r, scope))));
   }
 }

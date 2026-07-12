@@ -3,5 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "src/index.ts"
+  "main": "src/index.ts",
+  "dependencies": {
+    "@prisma/client": "^7.8.0",
+    "pg": "^8.22.0",
+    "prisma": "^7.8.0",
+    "@aigos/config-registry": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
+  }
 }
