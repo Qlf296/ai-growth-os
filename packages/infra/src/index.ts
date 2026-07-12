@@ -24,3 +24,7 @@ export { withRetry, withTimeout, TimeoutError, CircuitBreaker, CircuitOpenError 
 export type { RetryOptions, CircuitBreakerOptions, CircuitState } from "./resilience.js";
 export { InMemoryLock, RedisLock, GracefulShutdown } from "./lock.js";
 export type { DistributedLock, LockHandle, RedisLockClient } from "./lock.js";
+export { newTrace, continueTrace, childSpan, traceFields } from "./observability/tracing.js";
+export type { TraceContext } from "./observability/tracing.js";
+export { collectDiagnostics, AuditAggregator } from "./observability/diagnostics.js";
+export type { DiagnosticsReport, DiagnosticsInputs, AuditEvent, AuditCount } from "./observability/diagnostics.js";
