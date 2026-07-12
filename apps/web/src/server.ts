@@ -5,14 +5,14 @@
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
-import { ConnectionRepository, listUserWorkspaces, withWorkspace } from "@aigos/database";
+import { ConnectionRepository, getSyncState, listUserWorkspaces, withWorkspace } from "@aigos/database";
 
 import { buildDigest, listDrafts } from "@aigos/action";
 import { getOpportunityDetail } from "@aigos/growth";
 
 import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 
-import { actionsPage, confirmPage, experimentsPage, loginPage, opportunityPage, sectionPage, settingsPage, todayPage, SECTION_PATHS } from "./pages.js";
+import { actionsPage, confirmPage, connectionsPage, experimentsPage, loginPage, opportunityPage, sectionPage, settingsPage, todayPage, SECTION_PATHS } from "./pages.js";
 
 const html = (res: ServerResponse, status: number, body: string): void => {
   res.writeHead(status, { "content-type": "text/html; charset=utf-8" });
@@ -82,6 +82,26 @@ export function createWebServer(deps: WebDeps = {}): Server {
         const detail = await getOpportunityDetail(pool, first.id, id);
         if (!detail) return json(res, 404, { error: "not_found" });
         return html(res, 200, opportunityPage(user.email, detail));
+      }
+      if (method === "GET" && path === "/connections") {
+        const user = await currentUser(req);
+        if (!user) return redirect(res, "/login");
+        const pool = deps.pool!;
+        const first = (await listUserWorkspaces(pool, user.id))[0]!;
+        const conns = await withWorkspace(pool, first.id, (tx) => new ConnectionRepository().list(tx));
+        const views = [];
+        for (const c of conns) {
+          const st = await getSyncState(pool, first.id, c.id);
+          views.push({
+            id: c.id, provider: c.provider, status: c.status, healthStatus: c.healthStatus,
+            scopes: c.scopes, site: c.externalAccountRef,
+            lastSuccessfulSync: st?.lastSuccessfulSync ? st.lastSuccessfulSync.toISOString().slice(0, 10) : null,
+            lastAttemptedSync: st?.lastAttemptedSync ? st.lastAttemptedSync.toISOString().slice(0, 19) : null,
+            importedRows: st?.importedRows ?? 0, apiQuotaUsed: st?.apiQuotaUsed ?? 0, lastError: st?.lastError ?? null,
+            needsReconnect: c.healthStatus === "reconnect_required" || c.status === "expired" || c.status === "revoked",
+          });
+        }
+        return html(res, 200, connectionsPage(user.email, first.id, views));
       }
       if (method === "GET" && path === "/experiments") {
         const user = await currentUser(req);

@@ -228,3 +228,39 @@ export function actionsPage(email: string, workspaceId: string, drafts: import("
       body:JSON.stringify({workspaceId:'${workspaceId}',draftId:el.dataset.draft,to:el.dataset.to})});location.reload();}));
     </script>`);
 }
+
+export interface ConnectionView {
+  id: string;
+  provider: string;
+  status: string;
+  healthStatus: string;
+  scopes: string[];
+  site: string | null;
+  lastSuccessfulSync: string | null;
+  lastAttemptedSync: string | null;
+  importedRows: number;
+  apiQuotaUsed: number;
+  lastError: string | null;
+  needsReconnect: boolean;
+}
+
+/** Connections page (STEP 6.5) — GSC state from existing repositories; reconnect reuses the OAuth flow. */
+export function connectionsPage(email: string, workspaceId: string, conns: ConnectionView[]): string {
+  if (conns.length === 0) {
+    return appPage("/connections", "Connections", email,
+      `<p class="muted">No connections yet.</p>
+       <a href="/connections/google/authorize?workspaceId=${esc(workspaceId)}"><button style="width:auto;padding:8px 12px">Connect Google Search Console</button></a>`);
+  }
+  const rows = conns.map((c) => `
+    <div style="padding:16px;border:1px solid #e5e5e5;border-radius:8px;background:#fff;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between"><strong>${esc(PROVIDER_LABELS[c.provider] ?? c.provider)}</strong>
+        <span class="muted">status ${esc(c.status)} · health ${esc(c.healthStatus)}</span></div>
+      <p class="muted">site: ${esc(c.site ?? "not selected")}</p>
+      <p class="muted">permissions: ${esc(c.scopes.join(", ") || "none")}</p>
+      <p class="muted">last sync: ${esc(c.lastSuccessfulSync ?? "never")} · last attempt: ${esc(c.lastAttemptedSync ?? "never")}</p>
+      <p class="muted">ingested rows: ${c.importedRows} · API calls: ${c.apiQuotaUsed}${c.lastError ? ` · last error: ${esc(c.lastError)}` : ""}</p>
+      <p class="muted">refresh token: ${c.needsReconnect ? "reconnect required" : "valid"}</p>
+      ${c.needsReconnect ? `<a href="/connections/google/authorize?workspaceId=${esc(workspaceId)}"><button style="width:auto;padding:6px 10px">Reconnect</button></a>` : ""}
+    </div>`).join("");
+  return appPage("/connections", "Connections", email, rows);
+}
