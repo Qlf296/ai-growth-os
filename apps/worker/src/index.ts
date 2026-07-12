@@ -5,3 +5,4 @@
  */
 export { tick } from "./scheduler.js";
 export type { JobDefinition, SchedulerPayload, TickWindow } from "./scheduler.js";
+export { canaryHandler } from "./canary.js";
