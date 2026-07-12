@@ -96,6 +96,7 @@ export function checkDecisionConfig(diffText) {
     ([file, lines]) =>
       file.endsWith(".ts") &&
       !file.includes("/test/") &&
+      !/\.test\.tsx?$/.test(file) && // test files exercise definitions; they are not definitions
       lines.some((l) => /decisionAffecting:\s*true/.test(l) || /defaultValue:/.test(l)),
   );
   const addsShadowEval = [...files.keys()].some((f) => /^docs\/shadow-evals\/.+\.md$/.test(f));
