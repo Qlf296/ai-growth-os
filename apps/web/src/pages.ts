@@ -207,8 +207,9 @@ export function opportunityPage(email: string, d: import("@aigos/growth").Opport
 }
 
 /** Action Center (STEP 6.3): all generated drafts with review/approve/reject/archive. */
-export function actionsPage(email: string, workspaceId: string, drafts: import("@aigos/action").DraftListItem[]): string {
-  if (drafts.length === 0) {
+export function actionsPage(email: string, workspaceId: string, dp: import("@aigos/action").DraftPage): string {
+  const drafts = dp.items;
+  if (dp.total === 0) {
     return appPage("/actions", "Action Center", email, `<p class="muted">No drafts yet. Drafts are generated from accepted recommendations.</p>`);
   }
   const btn = (id: string, to: string, label: string): string =>
@@ -221,7 +222,11 @@ export function actionsPage(email: string, workspaceId: string, drafts: import("
       <p class="muted">model ${esc(d.provider)}/${esc(d.tier)} · tokens ${d.inputTokens}+${d.outputTokens} · cost €${esc(d.costEur.toFixed(4))} · ${d.cached ? "cached" : "live"} · evidence ${d.evidenceCount}</p>
       <div>${btn(d.id, "reviewed", "Review")}${btn(d.id, "approved", "Approve")}${btn(d.id, "rejected", "Reject")}${btn(d.id, "archived", "Archive")}</div>
     </div>`).join("");
-  return appPage("/actions", "Action Center", email, `${rows}
+  const pages = Math.ceil(dp.total / dp.pageSize);
+  const pager = pages > 1
+    ? `<div style="margin-top:8px">${dp.page > 1 ? `<a href="/actions?page=${dp.page - 1}">← prev</a> ` : ""}page ${dp.page}/${pages}${dp.page < pages ? ` <a href="/actions?page=${dp.page + 1}">next →</a>` : ""}</div>`
+    : "";
+  return appPage("/actions", "Action Center", email, `${rows}${pager}
     <script>
     document.querySelectorAll('[data-draft]').forEach(el=>el.addEventListener('click',async()=>{
       await fetch('/drafts/transition',{method:'POST',headers:{'content-type':'application/json','x-csrf':'1'},

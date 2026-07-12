@@ -20,18 +20,23 @@ export interface DraftListItem {
   createdAt: string;
 }
 
-export async function listDrafts(pool: pg.Pool, workspaceId: string): Promise<DraftListItem[]> {
-  const r = await withWorkspace(pool, workspaceId, (tx) =>
-    tx.query(
+export interface DraftPage { items: DraftListItem[]; total: number; page: number; pageSize: number; }
+
+export async function listDrafts(pool: pg.Pool, workspaceId: string, opts: { page?: number; pageSize?: number } = {}): Promise<DraftPage> {
+  const page = Math.max(1, opts.page ?? 1);
+  const pageSize = Math.max(1, opts.pageSize ?? 10);
+  return withWorkspace(pool, workspaceId, async (tx) => {
+    const total = (await tx.query(`SELECT count(*)::int AS n FROM drafts`)).rows[0].n as number;
+    const r = await tx.query(
       `SELECT d.id, d.draft_type, d.status, d.content, d.provider, d.tier, d.input_tokens, d.output_tokens, d.cost_eur, d.cached, d.evidence_ids, d.created_at,
               r.title AS rec_title, o.entity
        FROM drafts d
        JOIN recommendations r ON r.id = d.recommendation_id
        JOIN opportunities o ON o.id = r.opportunity_id
-       ORDER BY d.created_at DESC`,
-    ),
-  );
-  return (r.rows as Array<Record<string, unknown>>).map((row) => ({
+       ORDER BY d.created_at DESC LIMIT $1 OFFSET $2`,
+      [pageSize, (page - 1) * pageSize],
+    );
+    const items = (r.rows as Array<Record<string, unknown>>).map((row) => ({
     id: row.id as string,
     draftType: row.draft_type as string,
     status: row.status as string,
@@ -46,5 +51,7 @@ export async function listDrafts(pool: pg.Pool, workspaceId: string): Promise<Dr
     cached: row.cached as boolean,
     evidenceCount: (row.evidence_ids as unknown[]).length,
     createdAt: (row.created_at as Date).toISOString(),
-  }));
+    }));
+    return { items, total, page, pageSize };
+  });
 }

@@ -10,6 +10,6 @@ export type { DraftStatus, DraftTransition } from "./lifecycle.js";
 export { usageSummary } from "./usage.js";
 export type { UsageSummary } from "./usage.js";
 export { listDrafts } from "./list.js";
-export type { DraftListItem } from "./list.js";
+export type { DraftListItem, DraftPage } from "./list.js";
 export { buildDigest } from "./digest.js";
 export type { Digest, DigestDraft } from "./digest.js";

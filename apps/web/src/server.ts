@@ -15,7 +15,8 @@ import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 import { actionsPage, adminPage, confirmPage, connectionsPage, experimentsPage, loginPage, notificationsPage, opportunityPage, sectionPage, settingsPage, todayPage, usagePage, SECTION_PATHS } from "./pages.js";
 
 const html = (res: ServerResponse, status: number, body: string): void => {
-  res.writeHead(status, { "content-type": "text/html; charset=utf-8" });
+  // Per-user SSR: never store in shared caches (correctness + performance hygiene).
+  res.writeHead(status, { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store" });
   res.end(body);
 };
 
@@ -146,7 +147,8 @@ export function createWebServer(deps: WebDeps = {}): Server {
         if (!user) return redirect(res, "/login");
         const pool = deps.pool!;
         const first = (await listUserWorkspaces(pool, user.id))[0]!;
-        const drafts = await listDrafts(pool, first.id);
+        const page = Math.max(1, Number(url.searchParams.get("page") ?? "1") || 1);
+        const drafts = await listDrafts(pool, first.id, { page, pageSize: 5 });
         return html(res, 200, actionsPage(user.email, first.id, drafts));
       }
       if (method === "GET" && path === "/settings") {
