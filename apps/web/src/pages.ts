@@ -50,8 +50,46 @@ export const confirmPage = (token: string): string =>
 const SECTIONS: Record<string, { title: string; empty: string }> = {
   "/experiments": { title: "Experiments", empty: "No experiments yet." },
   "/learnings": { title: "Learnings", empty: "Nothing learned yet — learnings appear as actions complete and outcomes are measured." },
-  "/settings": { title: "Settings", empty: "Settings arrive in the next step." },
 };
+
+export interface SettingsContext {
+  readonly email: string;
+  readonly locale: string;
+  readonly workspaceName: string;
+  readonly region: string;
+  readonly planId: string;
+  readonly devices: { id: string; uaFamily: string; createdAt: string; current: boolean }[];
+}
+
+export function settingsPage(ctx: SettingsContext): string {
+  const rows = ctx.devices
+    .map(
+      (d) => `<tr><td>${esc(d.uaFamily)}${d.current ? ' <strong>· This device</strong>' : ""}</td>
+      <td class="muted">${esc(d.createdAt.slice(0, 10))}</td>
+      <td>${d.current
+        ? `<button data-logout>Sign out</button>`
+        : `<button data-revoke="${esc(d.id)}">Sign out</button>`}</td></tr>`,
+    )
+    .join("");
+  return appPage(
+    "/settings",
+    "Settings",
+    ctx.email,
+    `<h2 style="font-size:15px;margin:16px 0 4px">Profile</h2>
+     <p class="muted">${esc(ctx.email)} · locale ${esc(ctx.locale)}</p>
+     <h2 style="font-size:15px;margin:16px 0 4px">Workspace</h2>
+     <p class="muted">${esc(ctx.workspaceName)} · region ${esc(ctx.region)} · plan ${esc(ctx.planId)}</p>
+     <h2 style="font-size:15px;margin:16px 0 4px">Devices</h2>
+     <table style="width:100%;font-size:14px;border-collapse:collapse">${rows}</table>
+     <button id="others" style="width:auto;margin-top:12px;padding:8px 12px">Sign out all other devices</button>
+     <script>
+     const post=(u,b)=>fetch(u,{method:'POST',headers:{'content-type':'application/json','x-csrf':'1'},body:b?JSON.stringify(b):null});
+     document.querySelectorAll('[data-revoke]').forEach(el=>el.addEventListener('click',async()=>{await post('/me/sessions/revoke',{sessionId:el.dataset.revoke});location.reload();}));
+     document.querySelectorAll('[data-logout]').forEach(el=>el.addEventListener('click',async()=>{await post('/auth/logout');location.href='/login';}));
+     document.getElementById('others').addEventListener('click',async()=>{await post('/me/sessions/revoke-others');location.reload();});
+     </script>`,
+  );
+}
 
 export function sectionPage(path: string, email: string): string {
   const section = SECTIONS[path]!;

@@ -9,7 +9,7 @@ import { listUserWorkspaces, withWorkspace } from "@aigos/database";
 
 import { buildApiRoutes, cookies, json, type ApiDeps } from "@aigos/app-api";
 
-import { confirmPage, loginPage, sectionPage, todayPage, SECTION_PATHS } from "./pages.js";
+import { confirmPage, loginPage, sectionPage, settingsPage, todayPage, SECTION_PATHS } from "./pages.js";
 
 const html = (res: ServerResponse, status: number, body: string): void => {
   res.writeHead(status, { "content-type": "text/html; charset=utf-8" });
@@ -65,6 +65,24 @@ export function createWebServer(deps: WebDeps = {}): Server {
         const row = ws.rows[0] as { name: string; plan_id: string };
         return html(res, 200, todayPage({
           email: user.email, locale: user.locale, workspaceName: row.name, planId: row.plan_id, date: clock(),
+        }));
+      }
+      if (method === "GET" && path === "/settings") {
+        const user = await currentUser(req);
+        if (!user) return redirect(res, "/login");
+        const pool = deps.pool!;
+        const sid = cookies(req).sid!;
+        const workspaces = await listUserWorkspaces(pool, user.id);
+        const first = workspaces[0]!;
+        const ws = await withWorkspace(pool, first.id, (tx) =>
+          tx.query(`SELECT name, region, plan_id FROM workspaces WHERE id = $1`, [first.id]),
+        );
+        const row = ws.rows[0] as { name: string; region: string; plan_id: string };
+        const devices = (await deps.sessions!.listActiveForUser(user.id)).map((d) => ({
+          id: d.sessionId, uaFamily: d.uaFamily, createdAt: d.createdAt, current: d.sessionId === sid,
+        }));
+        return html(res, 200, settingsPage({
+          email: user.email, locale: user.locale, workspaceName: row.name, region: row.region, planId: row.plan_id, devices,
         }));
       }
       if (method === "GET" && SECTION_PATHS.includes(path)) {

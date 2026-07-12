@@ -8,4 +8,4 @@
 export { MagicLinkService } from "./magic-link.js";
 export type { MagicLinkOptions } from "./magic-link.js";
 export { SessionService } from "./sessions.js";
-export type { CurrentSession, IssuedSession, SessionOptions } from "./sessions.js";
+export type { ActiveDevice, CurrentSession, IssuedSession, SessionOptions } from "./sessions.js";

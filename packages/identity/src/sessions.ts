@@ -17,6 +17,12 @@ export interface CurrentSession {
   readonly userId: string;
 }
 
+export interface ActiveDevice {
+  readonly sessionId: string;
+  readonly uaFamily: string;
+  readonly createdAt: string;
+}
+
 export interface SessionOptions {
   readonly accessTtlMinutes?: number; // ADR-017: 15
   readonly refreshTtlDays?: number;   // S6 §7: 30
@@ -113,6 +119,46 @@ export class SessionService {
 
     await this.pool.query(`UPDATE sessions SET rotated_at = $2 WHERE id = $1`, [row.id, now]);
     return this.insert(row.user_id, uaFamily, null, row.refresh_family);
+  }
+
+  /** Active devices for the Settings screen (S6 §2: device list, per-device sign-out). */
+  async listActiveForUser(userId: string): Promise<ActiveDevice[]> {
+    const r = await this.pool.query(
+      `SELECT id, ua_family, created_at FROM sessions
+       WHERE user_id = $1 AND revoked_at IS NULL AND rotated_at IS NULL AND refresh_expires_at > $2
+       ORDER BY created_at`,
+      [userId, this.clock()],
+    );
+    return r.rows.map((row: { id: string; ua_family: string; created_at: Date }) => ({
+      sessionId: row.id,
+      uaFamily: row.ua_family,
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  /** Revoke only if the session belongs to the user — false otherwise (generic upstream). */
+  async revokeIfOwned(userId: string, sessionId: string): Promise<boolean> {
+    const r = await this.pool.query(
+      `SELECT 1 FROM sessions WHERE id = $1 AND user_id = $2`,
+      [sessionId, userId],
+    );
+    if (!r.rowCount) return false;
+    await this.revoke(sessionId);
+    return true;
+  }
+
+  /** Sign out every other device, keeping the current session's family alive (S6 §2). */
+  async revokeOtherSessions(userId: string, keepSessionId: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE sessions SET revoked_at = $3
+       WHERE user_id = $1 AND revoked_at IS NULL
+         AND refresh_family <> (SELECT refresh_family FROM sessions WHERE id = $2)`,
+      [userId, keepSessionId, this.clock()],
+    );
+    await this.pool.query(
+      `INSERT INTO audit_log (actor, event, details) VALUES ($1, 'session.revoked', $2::jsonb)`,
+      [userId, JSON.stringify({ scope: "all_other_devices" })],
+    );
   }
 
   /** Instant revocation is a query (ADR-017). */

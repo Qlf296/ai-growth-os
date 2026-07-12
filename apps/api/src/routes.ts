@@ -84,6 +84,38 @@ export function buildApiRoutes(deps: ApiDeps = {}): Record<string, Handler> {
       json(res, 200, { workspace: ws.rows[0] });
     },
 
+    "GET /me/sessions": async (req, res) => {
+      const { sessions } = auth();
+      const session = await currentSession(req);
+      if (!session) return json(res, 401, { error: "unauthenticated" });
+      const devices = await sessions.listActiveForUser(session.userId);
+      json(res, 200, {
+        sessions: devices.map((d) => ({
+          id: d.sessionId, uaFamily: d.uaFamily, createdAt: d.createdAt, current: d.sessionId === session.sessionId,
+        })),
+      });
+    },
+
+    "POST /me/sessions/revoke": async (req, res) => {
+      if (!csrfOk(req)) return json(res, 403, { error: "csrf" });
+      const { sessions } = auth();
+      const session = await currentSession(req);
+      if (!session) return json(res, 401, { error: "unauthenticated" });
+      const body = await readJson(req);
+      const target = typeof body.sessionId === "string" ? body.sessionId : "";
+      const done = target ? await sessions.revokeIfOwned(session.userId, target) : false;
+      done ? json(res, 204, undefined) : json(res, 404, { error: "not_found" });
+    },
+
+    "POST /me/sessions/revoke-others": async (req, res) => {
+      if (!csrfOk(req)) return json(res, 403, { error: "csrf" });
+      const { sessions } = auth();
+      const session = await currentSession(req);
+      if (!session) return json(res, 401, { error: "unauthenticated" });
+      await sessions.revokeOtherSessions(session.userId, session.sessionId);
+      json(res, 204, undefined);
+    },
+
     "POST /auth/request-link": async (req, res) => {
       if (!csrfOk(req)) return json(res, 403, { error: "csrf" });
       const { magic } = auth();
