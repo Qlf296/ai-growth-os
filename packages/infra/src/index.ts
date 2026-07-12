@@ -16,3 +16,5 @@ export type { SloDefinition, SloResult, SloState } from "./observability/slo.js"
 export { HealthRegistry } from "./observability/health.js";
 export type { HealthCheck, HealthReport } from "./observability/health.js";
 export { installErrorTracking } from "./observability/errors.js";
+export { PRODUCTION_ENV, validateEnv, renderConfigReport, assertValidEnv } from "./config/env.js";
+export type { ConfigReport, ValidatedVar, VarKind, VarSpec } from "./config/env.js";
