@@ -20,3 +20,5 @@ export { PRODUCTION_ENV, validateEnv, renderConfigReport, assertValidEnv } from 
 export type { ConfigReport, ValidatedVar, VarKind, VarSpec } from "./config/env.js";
 export { ReadinessRegistry, assertReady, liveness, diagnosticEvidenceId, databaseProbe, redisProbe, aiGatewayProbe } from "./observability/readiness.js";
 export type { DependencyProbe, ProbeResult, ProbeState, ReadinessReport } from "./observability/readiness.js";
+export { withRetry, withTimeout, TimeoutError, CircuitBreaker, CircuitOpenError } from "./resilience.js";
+export type { RetryOptions, CircuitBreakerOptions, CircuitState } from "./resilience.js";
