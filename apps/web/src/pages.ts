@@ -153,3 +153,28 @@ export function sectionPage(path: string, email: string): string {
 }
 
 export const SECTION_PATHS = Object.keys(SECTIONS);
+
+/** Opportunity detail page (STEP 6.2). Evidence always cites evidenceReferenceId. */
+export function opportunityPage(email: string, d: import("@aigos/growth").OpportunityDetail): string {
+  const evidence = d.evidence
+    .map((e) => `<li><code>${esc(e.evidenceReferenceId)}</code> — ${esc(e.generatedBy)}: ${esc(JSON.stringify(e.data))}</li>`)
+    .join("");
+  const timeline = d.timeline.length
+    ? d.timeline.map((t) => `<li>${esc(t.at.slice(0, 19))} — ${esc(t.from)} → <strong>${esc(t.to)}</strong>${t.reason ? ` (${esc(t.reason)})` : ""}</li>`).join("")
+    : `<li class="muted">detected (no transitions yet)</li>`;
+  const rec = d.recommendation;
+  return appPage("/", `Opportunity`, email, `
+    <p><a href="/">← Today</a></p>
+    <h2 style="font-size:16px">${esc(rec?.title ?? d.entity)}</h2>
+    <p class="muted">${esc(d.entity)}</p>
+    <p class="muted">status ${esc(d.status)} · severity ${esc(d.severity)} · impact ${esc(d.impact)} · effort ${esc(d.effort)} · confidence ${esc(d.confidence)} · priority ${esc(String(d.priorityScore))}</p>
+    <h3 style="font-size:14px;margin-top:16px">Recommendation</h3>
+    ${rec ? `<p>${esc(rec.summary)}</p><p class="muted">Why (business): ${esc(rec.businessReason)}</p><p class="muted">Why (technical): ${esc(rec.technicalReason)}</p>
+      <p class="muted">Expected impact: ${esc(rec.expectedImpact)}</p>
+      <ol>${rec.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+      <p class="muted">Rollback: ${esc(rec.rollback)}</p>` : `<p class="muted">No recommendation.</p>`}
+    <h3 style="font-size:14px;margin-top:16px">Evidence</h3>
+    <ul style="font-size:13px">${evidence}</ul>
+    <h3 style="font-size:14px;margin-top:16px">Status history (immutable)</h3>
+    <ul style="font-size:13px">${timeline}</ul>`);
+}
