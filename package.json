@@ -9,7 +9,8 @@
   "scripts": {
     "test:arch": "depcruise apps packages --config .dependency-cruiser.cjs",
     "typecheck": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "gates": "node scripts/gates/run.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

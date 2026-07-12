@@ -1,0 +1,39 @@
+# CI merge gates — every job below must be a required status check (branch
+# protection on main): no merge is possible if any architecture gate fails.
+# Provider-agnostic core: each step is a plain npm script; this file is a thin wrapper.
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: typecheck
+        run: npm run typecheck
+      - name: architecture tests — boundaries, AT-6, AT-7 (static)
+        run: npm run test:arch
+      - name: full test suite — AT-1..AT-14 runtime halves, AT-8/AT-9 on real Postgres
+        run: npm test
+      - name: governance gates — ADR-043 migrations, AT-unscoped, AT-14 decision-config
+        run: node scripts/gates/run.mjs origin/${{ github.base_ref || 'main' }}
+  redis-integration:
+    # Step-4 deferred item: BullMQ driver against real Redis (sandbox could not).
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: queue integration (real Redis)
+        run: REDIS_URL=redis://localhost:6379 npm test -- packages/infra
